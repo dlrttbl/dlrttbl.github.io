@@ -2,5 +2,5 @@ Weekdays
 https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/base%20timetables/241104mf-public.csv
 Saturdays
 https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/base%20timetables/241109sa-public.csv
-Pumpernickle
+Sundays
 https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/base%20timetables/241110su-public.csv
