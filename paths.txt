@@ -1,0 +1,6 @@
+Weekdays:
+https://github.com/dlrttbl/dlrttbl.github.io/raw/refs/heads/main/base%20timetables/241104mf-public.csv
+Saturdays:
+https://github.com/dlrttbl/dlrttbl.github.io/raw/refs/heads/main/base%20timetables/241109sa-public.csv
+Sundays:
+https://github.com/dlrttbl/dlrttbl.github.io/raw/refs/heads/main/base%20timetables/241110su-public.csv
