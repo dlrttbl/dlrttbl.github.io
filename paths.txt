@@ -1,6 +1,8 @@
 Weekdays
-https://github.com/dlrttbl/dlrttbl.github.io/raw/refs/heads/main/base%20timetables/241104mf-public.csv
+https://raw.githubusercontent.com/OmariInLondon/dlrtest/refs/heads/main/timetables/weekdays/241104mf-public.csv
 Saturdays
-https://github.com/dlrttbl/dlrttbl.github.io/raw/refs/heads/main/base%20timetables/241109sa-public.csv
+https://raw.githubusercontent.com/OmariInLondon/dlrtest/refs/heads/main/timetables/saturdays/241109sa-public.csv
 Sundays
-https://github.com/dlrttbl/dlrttbl.github.io/raw/refs/heads/main/base%20timetables/241110su-public.csv
+https://raw.githubusercontent.com/OmariInLondon/dlrtest/refs/heads/main/timetables/sundays/241110su-public.csv
+Big Bannana
+https://raw.githubusercontent.com/OmariInLondon/dlrtest/refs/heads/main/banana.csv
