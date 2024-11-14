@@ -2,7 +2,5 @@ Weekdays
 https://raw.githubusercontent.com/OmariInLondon/dlrtest/refs/heads/main/timetables/weekdays/241104mf-public.csv
 Saturdays
 https://raw.githubusercontent.com/OmariInLondon/dlrtest/refs/heads/main/timetables/saturdays/241109sa-public.csv
-Sundays
+SundaysTT
 https://raw.githubusercontent.com/OmariInLondon/dlrtest/refs/heads/main/timetables/sundays/241110su-public.csv
-Big Bannana
-https://raw.githubusercontent.com/OmariInLondon/dlrtest/refs/heads/main/banana.csv
