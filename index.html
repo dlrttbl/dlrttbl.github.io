@@ -154,7 +154,7 @@
     <h1>DLR Timetable Explorer Tool</h1>
     <div style="margin-bottom: 10px;">
         <label for="daySelector">Select Timetable:</label>
-        <select id="daySelector" onchange="processCSV()">
+        <select id="daySelector" onchange="processCSVAndUpdateURL()">
         </select>
     </div>
     <div id="trainRunList">
@@ -179,7 +179,8 @@
         <div id="aboutText">
             Created by Omari A. using <a href="https://tfl.gov.uk/corporate/transparency/freedom-of-information/foi-request-detail?referenceId=FOI-2196-2425" target="_blank">publicly available data</a>.<br><br>
             This is a simple tool that pulls data from the raw Working Timetable (WTT) files. However, there may be unknown issues, and <b>no liability is taken for any incorrect information shown.</b><br><br>
-            This tool uses the base WTTs (currently <span id="timetableFiles"></span>) and will be incorrect during periods of modified working (e.g., weekend engineering works).
+            This tool uses the base WTTs (currently <span id="timetableFiles"></span>) and will be incorrect during periods of modified working (e.g., weekend engineering works).<br><br>
+			Last updated 04/12/24.
         </div>
     </div>
 
@@ -189,28 +190,50 @@
         let selectedTrip = null;
         let currentTrips = [];
         let timetablePaths = {};
+        let archivedTimetablePaths = {};
+        let currentPath = null;
+		let isLoadingFromURL = false;
 
         async function fetchTimetablePaths() {
             try {
+                // Fetch main timetables
                 const response = await fetch('https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/paths.txt', { cache: 'no-store' });
                 const text = await response.text();
                 const lines = text.split('\n').filter(line => line.trim() !== '');
                 const fileNames = [];
 
+                // Process main timetables
                 for (let i = 0; i < lines.length; i += 2) {
                     const name = lines[i].trim();
                     const url = lines[i + 1].trim();
-                    timetablePaths[name.toLowerCase()] = url;
+                    const fileName = url.substring(url.lastIndexOf('/') + 1, url.lastIndexOf('.'));
+                    timetablePaths[fileName.toLowerCase()] = url;
 
                     const option = document.createElement('option');
-                    option.value = name.toLowerCase();
+                    option.value = fileName.toLowerCase();
                     option.textContent = name;
                     document.getElementById('daySelector').appendChild(option);
 
-                    const fileName = url.substring(url.lastIndexOf('/') + 1, url.lastIndexOf('.'));
                     fileNames.push(`'<span class="mint-green">${fileName}</span>'`);
                 }
 
+                // Fetch archived timetables
+                const archivedResponse = await fetch('https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/archivedpaths.txt', { cache: 'no-store' });
+                const archivedText = await archivedResponse.text();
+                const archivedLines = archivedText.split('\n').filter(line => line.trim() !== '');
+
+				// Process archived timetables
+				for (let i = 0; i < archivedLines.length; i += 2) {
+					const name = archivedLines[i].trim();
+					const url = archivedLines[i + 1].trim();
+					const fileName = url.substring(url.lastIndexOf('/') + 1, url.lastIndexOf('.'));
+					archivedTimetablePaths[fileName.toLowerCase()] = {
+						url: url,
+						name: name
+					};
+				}
+
+                // Update the about section with only active timetables
                 const fileNamesText = fileNames.length > 1
                     ? fileNames.slice(0, -1).join(', ') + ', and ' + fileNames.slice(-1)
                     : fileNames[0];
@@ -221,7 +244,20 @@
         }
 
         window.onload = () => {
-            fetchTimetablePaths().then(() => processCSV());
+            fetchTimetablePaths().then(() => {
+                if (!window.location.hash) {
+                    // Redirect to the first timetable if no hash fragment is present
+                    const firstTimetable = Object.keys(timetablePaths)[0];
+                    if (firstTimetable) {
+                        window.location.hash = `#timetable=${firstTimetable}`;
+                    }
+                } else {
+                    processCSVFromURL();
+                }
+            });
+
+            // Listen for the hashchange event to handle back and forward navigation correctly
+            window.addEventListener('hashchange', processCSVFromURL);
         };
 
         function toggleAboutSection() {
@@ -232,6 +268,41 @@
                 aboutText.style.display = 'none';
             }
         }
+
+		function showArchivedTimetables() {
+			const select = document.getElementById('daySelector');
+			// Clear existing options
+			select.innerHTML = '';
+			
+			// Get original names from paths.txt by fetching again
+			const fetchNames = async () => {
+				const response = await fetch('https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/paths.txt', { cache: 'no-store' });
+				const text = await response.text();
+				const lines = text.split('\n').filter(line => line.trim() !== '');
+
+				// Add active timetables with proper names
+				for (let i = 0; i < lines.length; i += 2) {
+					const name = lines[i].trim();
+					const url = lines[i + 1].trim();
+					const fileName = url.substring(url.lastIndexOf('/') + 1, url.lastIndexOf('.'));
+					
+					const option = document.createElement('option');
+					option.value = fileName.toLowerCase();
+					option.textContent = name;
+					select.appendChild(option);
+				}
+
+				// Add archived timetables
+				Object.entries(archivedTimetablePaths).forEach(([fileName, data]) => {
+					const option = document.createElement('option');
+					option.value = fileName;
+					option.textContent = data.name;
+					select.appendChild(option);
+				});
+			};
+
+			fetchNames();
+		}
 
         function detectTrips(stops) {
             const trips = [];
@@ -282,6 +353,12 @@
             const tripDetailsHeader = document.getElementById('tripDetailsHeader');
             navigationButtons.innerHTML = '';
 
+            // Only show navigation buttons if we have current run data
+            if (!currentRunData) {
+                tripDetailsHeader.textContent = '';
+                return;
+            }
+
             if (selectedTrip) {
                 tripDetailsHeader.textContent = `Trip ${selectedTrip.tripNumber} Details`;
                 const tripNav = document.createElement('div');
@@ -308,13 +385,14 @@
                 backButton.onclick = () => {
                     selectedTrip = null;
                     displayCurrentData();
+                    updateURLHash();
                 };
 
                 tripNav.appendChild(prevButton);
                 tripNav.appendChild(nextButton);
                 tripNav.appendChild(backButton);
                 navigationButtons.appendChild(tripNav);
-            } else {
+            } else if (currentRunData) {  // Only show toggle button if we have run data
                 tripDetailsHeader.textContent = '';
                 const toggleButton = document.createElement('button');
                 toggleButton.id = 'toggleView';
@@ -326,11 +404,130 @@
             }
         }
 
+		async function processCSVFromURL() {
+			const hash = window.location.hash.substring(1);
+			const urlParams = new URLSearchParams(hash);
+			
+			// Get all parameters in the hash
+			const params = Array.from(urlParams.keys());
+			
+			// Special handling for archived view
+			if (params.length === 1 && params[0] === 'archived') {
+				showArchivedTimetables();
+				clearRunSelection();
+				return;
+			}
+            
+            // Define valid parameter orders
+			const validOrders = [
+				['timetable'],
+				['timetable', 'run'],
+				['timetable', 'run', 'showall'],
+				['timetable', 'run', 'trip'],
+				['archived'] 
+			];
+            
+            // Check if the parameter order matches any valid order
+            const isValidOrder = validOrders.some(order => 
+                params.length === order.length && 
+                params.every((param, index) => param === order[index])
+            );
+            
+            if (!isValidOrder) {
+                alert('The URL you entered is invalid.');
+                const firstTimetable = Object.keys(timetablePaths)[0];
+                if (firstTimetable) {
+                    window.location.hash = `#timetable=${firstTimetable}`;
+                }
+                return;
+            }
+
+            const timetable = urlParams.get('timetable');
+            const run = urlParams.get('run');
+            const trip = urlParams.get('trip');
+            const showall = urlParams.has('showall');
+
+			// Check if timetable exists in either active or archived paths
+			currentPath = timetablePaths[timetable] || archivedTimetablePaths[timetable]?.url;
+            if (!timetable || !currentPath) {
+                alert('No data matches the URL you entered.');
+                const firstTimetable = Object.keys(timetablePaths)[0];
+                if (firstTimetable) {
+                    window.location.hash = `#timetable=${firstTimetable}`;
+                }
+                return;
+            }
+
+			// Set the appropriate timetable in the dropdown selector
+			isLoadingFromURL = true;
+			if (timetablePaths[timetable]) {
+				document.getElementById('daySelector').value = timetable;
+			} else {
+				const select = document.getElementById('daySelector');
+				// Remove any previous archived options
+				Array.from(select.options).forEach(option => {
+					if (!timetablePaths[option.value]) {
+						select.removeChild(option);
+					}
+				});
+				// Add the new archived option
+				const tempOption = document.createElement('option');
+				tempOption.value = timetable;
+				tempOption.textContent = archivedTimetablePaths[timetable].name;
+				select.appendChild(tempOption);
+				select.value = timetable;
+			}
+			isLoadingFromURL = false;
+
+            await processCSV();
+
+            // Check if run number exists in the data
+            if (run) {
+                if (!currentRunData || !currentRunData[run]) {
+                    alert('No data matches the URL you entered.');
+                    window.location.hash = `#timetable=${timetable}`;
+                    clearRunSelection();
+                    return;
+                }
+                displayDetails(run, currentRunData[run]);
+
+                // Check if trip number is valid
+                if (trip) {
+                    const tripNumber = parseInt(trip, 10);
+                    const selectedTripData = currentTrips.find(t => t.tripNumber === tripNumber);
+                    if (!selectedTripData) {
+                        alert('No data matches the URL you entered.');
+                        window.location.hash = `#timetable=${timetable}&run=${run}`;
+                        selectedTrip = null;
+                        displayCurrentData();
+                        return;
+                    }
+                    displayTrip(selectedTripData);
+                }
+            }
+
+            if (showall) {
+                showingAllTimings = true;
+                displayCurrentData();
+            }
+        }
+
+		async function processCSVAndUpdateURL() {
+			if (isLoadingFromURL) return; // Don't process if loading from URL
+			
+			const day = document.getElementById('daySelector').value;
+			currentRunData = null;
+			selectedTrip = null;
+			showingAllTimings = false;
+			currentPath = timetablePaths[day];
+			window.location.hash = `#timetable=${day}`;
+			await processCSV();
+		}
+
         async function processCSV() {
-            const day = document.getElementById('daySelector').value;
             let csvText = '';
             try {
-                const response = await fetch(timetablePaths[day]);
+                const response = await fetch(currentPath);
                 csvText = await response.text();
             } catch (error) {
                 console.error('Error loading CSV data:', error);
@@ -404,6 +601,8 @@
                 }
             });
 
+            currentRunData = runData;
+
             const runNumberList = document.getElementById('runNumberList');
             runNumberList.innerHTML = '';
 
@@ -411,7 +610,10 @@
                 const div = document.createElement('div');
                 div.textContent = runNumber;
                 div.className = 'run-number';
-                div.onclick = () => displayDetails(runNumber, runData[runNumber]);
+                div.onclick = () => {
+                    displayDetails(runNumber, runData[runNumber]);
+                    updateURLHash();
+                };
                 runNumberList.appendChild(div);
             });
         }
@@ -420,11 +622,13 @@
             showingAllTimings = !showingAllTimings;
             selectedTrip = null;
             displayCurrentData();
+            updateURLHash();
         }
 
         function displayTrip(trip) {
             selectedTrip = trip;
             displayCurrentData();
+            updateURLHash();
         }
 
         function displayCurrentData() {
@@ -527,6 +731,28 @@
             `;
 
             document.getElementById('detailsOutput').innerHTML = tableHTML;
+        }
+
+		function updateURLHash() {
+			const timetable = document.getElementById('daySelector').value;
+			const run = currentRunData ? document.getElementById('currentRun').textContent.split(' ')[1] : null;
+			const trip = selectedTrip ? selectedTrip.tripNumber : null;
+			
+			let hash = `timetable=${timetable}`;
+			if (run) hash += `&run=${run}`;
+			if (showingAllTimings) hash += '&showall';
+			if (trip) hash += `&trip=${trip}`;
+
+			// Replace current history entry instead of creating a new one
+			window.history.replaceState(null, '', `#${hash}`);
+		}
+
+        function clearRunSelection() {
+            currentRunData = null;
+            selectedTrip = null;
+            document.getElementById('currentRun').textContent = '';
+            document.getElementById('detailsOutput').innerHTML = 'Select a train run number to see details.';
+            updateNavigationButtons();
         }
     </script>
 </body>
