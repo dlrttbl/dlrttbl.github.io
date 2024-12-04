@@ -243,22 +243,24 @@
             }
         }
 
-        window.onload = () => {
-            fetchTimetablePaths().then(() => {
-                if (!window.location.hash) {
-                    // Redirect to the first timetable if no hash fragment is present
-                    const firstTimetable = Object.keys(timetablePaths)[0];
-                    if (firstTimetable) {
-                        window.location.hash = `#timetable=${firstTimetable}`;
-                    }
-                } else {
-                    processCSVFromURL();
-                }
-            });
+		window.onload = () => {
+			fetchTimetablePaths().then(() => {
+				if (!window.location.hash) {
+					// Use replaceState instead of setting hash directly
+					const firstTimetable = Object.keys(timetablePaths)[0];
+					if (firstTimetable) {
+						const newURL = `${window.location.pathname}#timetable=${firstTimetable}`;
+						window.history.replaceState(null, '', newURL);
+						processCSVFromURL();
+					}
+				} else {
+					processCSVFromURL();
+				}
+			});
 
-            // Listen for the hashchange event to handle back and forward navigation correctly
-            window.addEventListener('hashchange', processCSVFromURL);
-        };
+			// Listen for the hashchange event to handle back and forward navigation correctly
+			window.addEventListener('hashchange', processCSVFromURL);
+		};
 
         function toggleAboutSection() {
             const aboutText = document.getElementById('aboutText');
@@ -406,10 +408,25 @@
 
 		async function processCSVFromURL() {
 			const hash = window.location.hash.substring(1);
+			
+			// If no hash, redirect to first timetable and return early
+			if (!hash) {
+				const firstTimetable = Object.keys(timetablePaths)[0];
+				if (firstTimetable) {
+					window.location.hash = `#timetable=${firstTimetable}`;
+				}
+				return;
+			}
+			
 			const urlParams = new URLSearchParams(hash);
 			
 			// Get all parameters in the hash
 			const params = Array.from(urlParams.keys());
+			
+			// Clear run data if we're at the base timetable URL
+			if (params.length === 1 && params[0] === 'timetable') {
+				clearRunSelection();
+			}
 			
 			// Special handling for archived view
 			if (params.length === 1 && params[0] === 'archived') {
@@ -417,8 +434,8 @@
 				clearRunSelection();
 				return;
 			}
-            
-            // Define valid parameter orders
+				
+			// Define valid parameter orders
 			const validOrders = [
 				['timetable'],
 				['timetable', 'run'],
@@ -426,37 +443,39 @@
 				['timetable', 'run', 'trip'],
 				['archived'] 
 			];
-            
-            // Check if the parameter order matches any valid order
-            const isValidOrder = validOrders.some(order => 
-                params.length === order.length && 
-                params.every((param, index) => param === order[index])
-            );
-            
-            if (!isValidOrder) {
-                alert('The URL you entered is invalid.');
-                const firstTimetable = Object.keys(timetablePaths)[0];
-                if (firstTimetable) {
-                    window.location.hash = `#timetable=${firstTimetable}`;
-                }
-                return;
-            }
+				
+			// Check if the parameter order matches any valid order
+			const isValidOrder = validOrders.some(order => 
+				params.length === order.length && 
+				params.every((param, index) => param === order[index])
+			);
+				
+			if (!isValidOrder) {
+				alert('The URL you entered is invalid.');
+				const firstTimetable = Object.keys(timetablePaths)[0];
+				if (firstTimetable) {
+					window.location.hash = `#timetable=${firstTimetable}`;
+				}
+				clearRunSelection();
+				return;
+			}
 
-            const timetable = urlParams.get('timetable');
-            const run = urlParams.get('run');
-            const trip = urlParams.get('trip');
-            const showall = urlParams.has('showall');
+			const timetable = urlParams.get('timetable');
+			const run = urlParams.get('run');
+			const trip = urlParams.get('trip');
+			const showall = urlParams.has('showall');
 
 			// Check if timetable exists in either active or archived paths
 			currentPath = timetablePaths[timetable] || archivedTimetablePaths[timetable]?.url;
-            if (!timetable || !currentPath) {
-                alert('No data matches the URL you entered.');
-                const firstTimetable = Object.keys(timetablePaths)[0];
-                if (firstTimetable) {
-                    window.location.hash = `#timetable=${firstTimetable}`;
-                }
-                return;
-            }
+			if (!timetable || !currentPath) {
+				alert('No data matches the URL you entered.');
+				const firstTimetable = Object.keys(timetablePaths)[0];
+				if (firstTimetable) {
+					window.location.hash = `#timetable=${firstTimetable}`;
+				}
+				clearRunSelection();
+				return;
+			}
 
 			// Set the appropriate timetable in the dropdown selector
 			isLoadingFromURL = true;
@@ -479,46 +498,46 @@
 			}
 			isLoadingFromURL = false;
 
-            await processCSV();
+			await processCSV();
 
-            // Check if run number exists in the data
-            if (run) {
-                if (!currentRunData || !currentRunData[run]) {
-                    alert('No data matches the URL you entered.');
-                    window.location.hash = `#timetable=${timetable}`;
-                    clearRunSelection();
-                    return;
-                }
-                displayDetails(run, currentRunData[run]);
+			// Check if run number exists in the data
+			if (run) {
+				if (!currentRunData || !currentRunData[run]) {
+					alert('No data matches the URL you entered.');
+					window.location.hash = `#timetable=${timetable}`;
+					clearRunSelection();
+					return;
+				}
+				displayDetails(run, currentRunData[run]);
 
-                // Check if trip number is valid
-                if (trip) {
-                    const tripNumber = parseInt(trip, 10);
-                    const selectedTripData = currentTrips.find(t => t.tripNumber === tripNumber);
-                    if (!selectedTripData) {
-                        alert('No data matches the URL you entered.');
-                        window.location.hash = `#timetable=${timetable}&run=${run}`;
-                        selectedTrip = null;
-                        displayCurrentData();
-                        return;
-                    }
-                    displayTrip(selectedTripData);
-                }
-            }
+				// Check if trip number is valid
+				if (trip) {
+					const tripNumber = parseInt(trip, 10);
+					const selectedTripData = currentTrips.find(t => t.tripNumber === tripNumber);
+					if (!selectedTripData) {
+						alert('No data matches the URL you entered.');
+						window.location.hash = `#timetable=${timetable}&run=${run}`;
+						selectedTrip = null;
+						displayCurrentData();
+						return;
+					}
+					displayTrip(selectedTripData);
+				}
+			} else {
+				clearRunSelection(); // Clear run data if no run parameter is present
+			}
 
-            if (showall) {
-                showingAllTimings = true;
-                displayCurrentData();
-            }
-        }
+			if (showall) {
+				showingAllTimings = true;
+				displayCurrentData();
+			}
+		}
 
 		async function processCSVAndUpdateURL() {
 			if (isLoadingFromURL) return; // Don't process if loading from URL
 			
 			const day = document.getElementById('daySelector').value;
-			currentRunData = null;
-			selectedTrip = null;
-			showingAllTimings = false;
+			clearRunSelection(); // Always clear run selection when changing timetables
 			currentPath = timetablePaths[day];
 			window.location.hash = `#timetable=${day}`;
 			await processCSV();
@@ -733,19 +752,17 @@
             document.getElementById('detailsOutput').innerHTML = tableHTML;
         }
 
-		function updateURLHash() {
-			const timetable = document.getElementById('daySelector').value;
-			const run = currentRunData ? document.getElementById('currentRun').textContent.split(' ')[1] : null;
-			const trip = selectedTrip ? selectedTrip.tripNumber : null;
-			
-			let hash = `timetable=${timetable}`;
-			if (run) hash += `&run=${run}`;
-			if (showingAllTimings) hash += '&showall';
-			if (trip) hash += `&trip=${trip}`;
-
-			// Replace current history entry instead of creating a new one
-			window.history.replaceState(null, '', `#${hash}`);
-		}
+        function updateURLHash() {
+            const timetable = document.getElementById('daySelector').value;
+            const run = currentRunData ? document.getElementById('currentRun').textContent.split(' ')[1] : null;
+            const trip = selectedTrip ? selectedTrip.tripNumber : null;
+            
+            let hash = `timetable=${timetable}`;
+            if (run) hash += `&run=${run}`;
+            if (showingAllTimings) hash += '&showall';
+            if (trip) hash += `&trip=${trip}`;
+            window.location.hash = hash;
+        }
 
         function clearRunSelection() {
             currentRunData = null;
