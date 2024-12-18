@@ -413,8 +413,7 @@
 			if (!hash) {
 				const firstTimetable = Object.keys(timetablePaths)[0];
 				if (firstTimetable) {
-					const newURL = `${window.location.pathname}#timetable=${firstTimetable}`;
-					window.history.replaceState(null, '', newURL);
+					window.location.hash = `#timetable=${firstTimetable}`;
 				}
 				return;
 			}
@@ -455,8 +454,7 @@
 				alert('The URL you entered is invalid.');
 				const firstTimetable = Object.keys(timetablePaths)[0];
 				if (firstTimetable) {
-					const newURL = `${window.location.pathname}#timetable=${firstTimetable}`;
-					window.history.replaceState(null, '', newURL);
+					window.location.hash = `#timetable=${firstTimetable}`;
 				}
 				clearRunSelection();
 				return;
@@ -473,8 +471,7 @@
 				alert('No data matches the URL you entered.');
 				const firstTimetable = Object.keys(timetablePaths)[0];
 				if (firstTimetable) {
-					const newURL = `${window.location.pathname}#timetable=${firstTimetable}`;
-					window.history.replaceState(null, '', newURL);
+					window.location.hash = `#timetable=${firstTimetable}`;
 				}
 				clearRunSelection();
 				return;
@@ -507,8 +504,7 @@
 			if (run) {
 				if (!currentRunData || !currentRunData[run]) {
 					alert('No data matches the URL you entered.');
-					const newURL = `${window.location.pathname}#timetable=${timetable}`;
-					window.history.replaceState(null, '', newURL);
+					window.location.hash = `#timetable=${timetable}`;
 					clearRunSelection();
 					return;
 				}
@@ -520,8 +516,7 @@
 					const selectedTripData = currentTrips.find(t => t.tripNumber === tripNumber);
 					if (!selectedTripData) {
 						alert('No data matches the URL you entered.');
-						const newURL = `${window.location.pathname}#timetable=${timetable}&run=${run}`;
-						window.history.replaceState(null, '', newURL);
+						window.location.hash = `#timetable=${timetable}&run=${run}`;
 						selectedTrip = null;
 						displayCurrentData();
 						return;
@@ -544,8 +539,7 @@
 			const day = document.getElementById('daySelector').value;
 			clearRunSelection(); // Always clear run selection when changing timetables
 			currentPath = timetablePaths[day];
-			const newURL = `${window.location.pathname}#timetable=${day}`;
-			window.history.replaceState(null, '', newURL);
+			window.location.hash = `#timetable=${day}`;
 			await processCSV();
 		}
 
@@ -767,8 +761,7 @@
             if (run) hash += `&run=${run}`;
             if (showingAllTimings) hash += '&showall';
             if (trip) hash += `&trip=${trip}`;
-			const newURL = `${window.location.pathname}#${hash}`;
-			window.history.replaceState(null, '', newURL);
+            window.location.hash = hash;
         }
 
         function clearRunSelection() {
