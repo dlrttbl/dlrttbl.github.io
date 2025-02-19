@@ -53,6 +53,8 @@ Applies: '2025-01-01/2025-01-20'
 URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/250101-250120.csv
 ```
 
+*Note: ********************************************************`03:00`******************************************************** is treated as the transition point between dates by the tool.* 
+
 - `Applies:` can include:
   - Fixed weekdays (e.g., `'Monday'`, `'Tuesday'`, etc.).
   - A specific date (e.g., `'2025-01-01'`).
