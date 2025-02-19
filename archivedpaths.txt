@@ -1,6 +1,6 @@
-[ARCHIVED] 240122mf-public
-https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/archived%20timetables/240122mf-public.csv
-[ARCHIVED] 240203sa-public
-https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/archived%20timetables/240203sa-public.csv
-[ARCHIVED] 240204su-public
-https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/archived%20timetables/240204su-public.csv
+Name: [ARCHIVED] 240122mf-public
+URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/archived%20timetables/240122mf-public.csv
+Name: [ARCHIVED] 240203sa-public
+URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/archived%20timetables/240203sa-public.csv
+Name: [ARCHIVED] 240204su-public
+URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/archived%20timetables/240204su-public.csv
