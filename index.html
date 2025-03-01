@@ -229,7 +229,8 @@
 			<b>no liability is taken for any incorrect information shown.</b><br><br>
 			This tool uses the base WTTs (currently <span id="timetableFiles"></span>) and will be incorrect during periods of modified working 
 			(e.g., weekend engineering works).<br><br>
-			Last updated 19/02/25, the tool will now default to the correct timetable for the current day of the week, and has had live service status warnings added.
+			Last updated 01/03/25, the tool now automatically detects and shows when runs transition throughout the day (i.e Run 302 becoming Run 456.)<br><br>
+			19/02/25, the tool will now default to the correct timetable for the current day of the week, and has had live service status added to warn when info is likely incorrect.
 		</div>
 	</div>
 
@@ -255,12 +256,75 @@
 
 		async function checkTfLStatus() {
 			try {
+				// Fetch service overrides
+				const overrideResponse = await fetch('https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/serviceoverrides.txt', { cache: 'no-store' });
+				const overrideText = await overrideResponse.text();
+				const overrideLines = overrideText.split('\n').filter(line => line.trim() !== '');
+				
+				// Get current operating date
+				const operatingDate = getOperatingDate();
+				
+				// Process service overrides
+				let overrideStatus = null;
+				let currentEntry = {};
+				const serviceOverrides = [];
+				
+				for (const line of overrideLines) {
+					const trimmedLine = line.trim();
+					if (trimmedLine.startsWith('Mapping:')) {
+						if (Object.keys(currentEntry).length > 0) {
+							serviceOverrides.push({...currentEntry});
+						}
+						currentEntry = {
+							mapping: parseInt(trimmedLine.substring(8).trim(), 10)
+						};
+					} else if (trimmedLine.startsWith('Applies:')) {
+						currentEntry.applies = trimmedLine.substring(8).trim().replace(/['"]/g, '');
+					}
+				}
+				
+				// Add the last entry
+				if (Object.keys(currentEntry).length > 0) {
+					serviceOverrides.push(currentEntry);
+				}
+				
+				// Find applicable override
+				const applicableOverride = serviceOverrides.find(entry => {
+					const ranges = entry.applies.split(',').map(r => r.trim());
+					return ranges.some(range => {
+						// Handle single date or date range
+						if (range.includes('/')) {
+							const [start, end] = range.split('/').map(d => {
+								const newDate = new Date(d.trim());
+								newDate.setHours(0, 0, 0, 0);
+								return newDate;
+							});
+							const compareDate = new Date(operatingDate);
+							compareDate.setHours(0, 0, 0, 0);
+							return compareDate >= start && compareDate <= end;
+						} else {
+							// Single date
+							const date = new Date(range);
+							date.setHours(0, 0, 0, 0);
+							const compareDate = new Date(operatingDate);
+							compareDate.setHours(0, 0, 0, 0);
+							return +compareDate === +date;
+						}
+					});
+				});
+				
+				// Fetch TfL status
 				const response = await fetch('https://api.tfl.gov.uk/Line/dlr/Status');
 				const data = await response.json();
 				const statuses = data[0].lineStatuses;
 				
+				// Use the override status if one is found, otherwise use the TfL API status
+				const statusToUse = applicableOverride !== undefined 
+					? [{ statusSeverity: applicableOverride.mapping }] 
+					: statuses;
+				
 				// Filter only the statuses that are in both our warning triggers AND our mappings
-				const warningStatuses = statuses.filter(status => 
+				const warningStatuses = statusToUse.filter(status => 
 					WARNING_TRIGGERS.includes(status.statusSeverity) && 
 					STATUS_MAPPINGS[status.statusSeverity]
 				);
@@ -311,6 +375,7 @@
         let archivedTimetablePaths = {};
         let currentPath = null;
 		let isLoadingFromURL = false;
+		let runTransitions = {};
 
 		async function fetchTimetablePaths() {
 			try {
@@ -419,7 +484,7 @@
 		function getOperatingDate() {
 			const now = new Date();
 			// If it's before 3 AM, use the previous day's date
-			if (now.getHours() < 7) {
+			if (now.getHours() < 3) {
 				now.setDate(now.getDate() - 1);
 			}
 			return now;
@@ -585,6 +650,188 @@
 			fetchNames();
 		}
 
+		async function detectRunTransitions() {
+			// Fetch the raw CSV data again
+			let csvText = '';
+			try {
+				const response = await fetch(currentPath);
+				csvText = await response.text();
+			} catch (error) {
+				console.error('Error loading CSV data for transition detection:', error);
+				return {};
+			}
+
+			const lines = csvText.split('\n').filter(line => line.trim() !== '');
+			const transitions = {};
+			
+			// Adjacency map of DLR stations
+			const adjacencyMap = {
+				"ABR": ["SHS", "WEH"],
+				"ALS": ["LAP", "POP"],
+				"BAN": ["SHA", "BANH"],
+				"BANH": ["BAN"],
+				"BEC": ["GAR"],
+				"BEP": ["CYP", "ROA"],
+				"BLA": ["EAI", "POP"],
+				"BOC": ["DER", "PML"],
+				"CAT": ["EAI", "ROV", "STL", "WST"],
+				"CAW": ["HEQ", "WES", "WIQ"],
+				"CRO": ["MUD", "SOQ"],
+				"CUH": ["PRR", "ROV"],
+				"CUS": ["GRE", "ISG"],
+				"CYP": ["BEP", "GAR"],
+				"DEB": ["ELR", "GRE"],
+				"DER": ["BOC", "LAP"],
+				"EAI": ["BLA", "CAT"],
+				"ELR": ["DEB", "LEW"],
+				"GAR": ["BEC", "CYP"],
+				"GRE": ["CUS", "DEB"],
+				"HEQ": ["CAW", "SOQ"],
+				"ISG": ["CUS", "MUD"],
+				"KGV": ["LCA", "WOA"],
+				"LAP": ["ALS", "DER"],
+				"LCA": ["KGV", "PDK"],
+				"LEW": ["ELR"],
+				"LIM": ["SHA", "WES"],
+				"MUD": ["CRO", "ISG"],
+				"PDK": ["LCA", "WST"],
+				"PML": ["BOC", "STR"],
+				"POP": ["ALS", "BLA", "WES", "WIQ"],
+				"PRR": ["CUH", "ROA"],
+				"ROA": ["BEP", "PRR"],
+				"ROV": ["CAT", "CUH"],
+				"SHA": ["BAN", "LIM", "TOG"],
+				"SHS": ["ABR", "STR"],
+				"SOQ": ["CRO", "HEQ"],
+				"STI": ["STR"],
+				"STL": ["CAT", "WEH"],
+				"STR": ["PML", "SHS", "STI"],
+				"TOG": ["SHA"],
+				"WEH": ["ABR", "STL"],
+				"WES": ["CAW", "LIM", "POP", "WIQ"],
+				"WIQ": ["CAW", "POP", "WES"],
+				"WOA": ["KGV"],
+				"WST": ["CAT", "PDK"]
+			};
+			
+			// Helper function to extract station code
+			function getStationCode(locationCode) {
+				if (locationCode === "BANH") return "BANH";
+				if (locationCode === "STR4B") return "STR";
+				return locationCode.substring(0, 3);
+			}
+			
+			// Function to check if stations are adjacent
+			function areStationsAdjacent(station1, station2) {
+				const code1 = getStationCode(station1);
+				const code2 = getStationCode(station2);
+				
+				// Same station (different platforms)
+				if (code1 === code2) return true;
+				
+				// Check adjacency map
+				if (adjacencyMap[code1] && adjacencyMap[code1].includes(code2)) return true;
+				if (adjacencyMap[code2] && adjacencyMap[code2].includes(code1)) return true;
+				
+				return false;
+			}
+			
+			// Function to parse time
+			function parseTime(timeStr) {
+				const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+				return hours * 3600 + minutes * 60 + seconds;
+			}
+			
+			// First, create a map of run numbers to their line indices
+			const runLineIndices = {};
+			lines.forEach((line, index) => {
+				const parts = line.split(',');
+				if (parts.length >= 7) {
+					const runNumber = parts[1].trim();
+					if (!runLineIndices[runNumber]) {
+						runLineIndices[runNumber] = [];
+					}
+					runLineIndices[runNumber].push(index);
+				}
+			});
+			
+			// Get a sorted list of all run numbers
+			const allRuns = Object.keys(runLineIndices);
+			
+			// For each run, find its last stop
+			for (const fromRun of allRuns) {
+				const fromRunIndices = runLineIndices[fromRun];
+				if (fromRunIndices.length === 0) continue;
+				
+				// Get the last line index for this run
+				const lastLineIndex = Math.max(...fromRunIndices);
+				const lastLine = lines[lastLineIndex];
+				const lastLineParts = lastLine.split(',');
+				
+				// Extract details from the last line
+				const lastLocationCode = lastLineParts[4].trim();
+				const lastDepartureTime = lastLineParts[6].trim();
+				const lastDepartureSeconds = parseTime(lastDepartureTime);
+				
+				// Skip if it's a junction
+				if (lastLocationCode.startsWith('J')) continue;
+				
+				// Check the next few lines to see if another run starts
+				const locationMapping = {
+					'STR4B': 'Stratford',
+					'BEC2': 'Beckton',
+					'LEW6': 'Lewisham'
+				};
+				
+				for (let i = lastLineIndex + 1; i <= lastLineIndex + 3 && i < lines.length; i++) {
+					const nextLine = lines[i];
+					const nextLineParts = nextLine.split(',');
+					
+					if (nextLineParts.length < 7) continue;
+					
+					const nextRun = nextLineParts[1].trim();
+					if (nextRun === fromRun) continue; // Skip same run
+					
+					// Only consider this if it's the first occurrence of the next run
+					if (Math.min(...runLineIndices[nextRun]) !== i) continue;
+					
+					const nextLocationCode = nextLineParts[4].trim();
+					const nextArrivalTime = nextLineParts[5].trim();
+					const nextArrivalSeconds = parseTime(nextArrivalTime);
+					
+					// Skip if it's a junction
+					if (nextLocationCode.startsWith('J')) continue;
+					
+					// Calculate time difference
+					const timeDiffMinutes = (nextArrivalSeconds - lastDepartureSeconds) / 60;
+					
+					// Apply the three rules:
+					// 1. Stations must be adjacent
+					// 2. Time gap must be 0.5-5 minutes
+					// 3. The runs should be examined in the order they appear in the data
+					if (areStationsAdjacent(lastLocationCode, nextLocationCode) && 
+						timeDiffMinutes >= 0.5 && 
+						timeDiffMinutes <= 5) {
+						
+						// Get the location name
+						let locationName = locationMapping[nextLocationCode] || 'Unknown';
+						
+						transitions[fromRun] = { 
+							nextRun, 
+							location: locationName 
+						};
+						
+						// Just before returning, store the last location for UI purposes
+						transitions[fromRun].fromLocation = lastLocationCode;						
+						
+						break; // Found the next run, no need to check others
+					}
+				}
+			}
+			
+			return transitions;
+		}
+
         function detectTrips(stops) {
             const trips = [];
             let currentTrip = [];
@@ -628,6 +875,17 @@
 
             return trips;
         }
+		
+		function getFormedFromRun(runNumber) {
+			for (const [fromRun, transition] of Object.entries(runTransitions)) {
+				if (transition.nextRun === runNumber) {
+					// Use the last location of the previous run for "Formed from"
+					const fromLocation = transition.fromLocation || transition.location;
+					return { fromRun, location: fromLocation };
+				}
+			}
+			return null;
+		}
 
         function updateNavigationButtons() {
             const navigationButtons = document.getElementById('navigationButtons');
@@ -822,6 +1080,21 @@
 			await processCSV();
 		}
 
+		const locationMapping = {
+			'ABR': 'Abbey Road', 'ALS': 'All Saints', 'BAN': 'Bank', 'BEC': 'Beckton', 
+			'BEP': 'Beckton Park', 'BLA': 'Blackwall', 'BOC': 'Bow Church', 'CAW': 'Canary Wharf',
+			'CAT': 'Canning Town', 'CRO': 'Crossharbour', 'CUH': 'Custom House', 'CUS': 'Cutty Sark',
+			'CYP': 'Cyprus', 'DEB': 'Deptford Bridge', 'DER': 'Devons Road', 'EAI': 'East India',
+			'ELR': 'Elverson Road', 'GAR': 'Gallions Reach', 'GRE': 'Greenwich', 'HEQ': 'Heron Quays',
+			'ISG': 'Island Gardens', 'KGV': 'King George V', 'LAP': 'Langdon Park', 'LEW': 'Lewisham',
+			'LIM': 'Limehouse', 'LCA': 'London City Airport', 'MUD': 'Mudchute', 'PDK': 'Pontoon Dock',
+			'POP': 'Poplar', 'PRR': 'Prince Regent', 'PML': 'Pudding Mill Lane', 'ROA': 'Royal Albert',
+			'ROV': 'Royal Victoria', 'SHA': 'Shadwell', 'SOQ': 'South Quay', 'STL': 'Star Lane',
+			'SHS': 'Stratford High Street', 'STI': 'Stratford International', 'STR': 'Stratford',
+			'TOG': 'Tower Gateway', 'WEH': 'West Ham', 'WIQ': 'West India Quay', 'WST': 'West Silvertown',
+			'WES': 'Westferry', 'WOA': 'Woolwich Arsenal'
+		};
+
         async function processCSV() {
             let csvText = '';
             try {
@@ -840,21 +1113,6 @@
                 'JC4M', 'JROM', 'JWEX', 'JCTM', 'JCTX', 'JWIQ', 'JNQX',
                 'JNQM', 'JWSX', 'JWSM', 'ISP2', 'ISP3'
             ];
-
-            const locationMapping = {
-                'ABR': 'Abbey Road', 'ALS': 'All Saints', 'BAN': 'Bank', 'BEC': 'Beckton', 
-                'BEP': 'Beckton Park', 'BLA': 'Blackwall', 'BOC': 'Bow Church', 'CAW': 'Canary Wharf',
-                'CAT': 'Canning Town', 'CRO': 'Crossharbour', 'CUH': 'Custom House', 'CUS': 'Cutty Sark',
-                'CYP': 'Cyprus', 'DEB': 'Deptford Bridge', 'DER': 'Devons Road', 'EAI': 'East India',
-                'ELR': 'Elverson Road', 'GAR': 'Gallions Reach', 'GRE': 'Greenwich', 'HEQ': 'Heron Quays',
-                'ISG': 'Island Gardens', 'KGV': 'King George V', 'LAP': 'Langdon Park', 'LEW': 'Lewisham',
-                'LIM': 'Limehouse', 'LCA': 'London City Airport', 'MUD': 'Mudchute', 'PDK': 'Pontoon Dock',
-                'POP': 'Poplar', 'PRR': 'Prince Regent', 'PML': 'Pudding Mill Lane', 'ROA': 'Royal Albert',
-                'ROV': 'Royal Victoria', 'SHA': 'Shadwell', 'SOQ': 'South Quay', 'STL': 'Star Lane',
-                'SHS': 'Stratford High Street', 'STI': 'Stratford International', 'STR': 'Stratford',
-                'TOG': 'Tower Gateway', 'WEH': 'West Ham', 'WIQ': 'West India Quay', 'WST': 'West Silvertown',
-                'WES': 'Westferry', 'WOA': 'Woolwich Arsenal'
-            };
 
             lines.forEach((line, index) => {
                 const parts = line.split(',');
@@ -914,6 +1172,10 @@
                 };
                 runNumberList.appendChild(div);
             });
+			
+			// Detect transitions between runs (same physical train changing run number)
+			runTransitions = await detectRunTransitions();
+
         }
 
         function toggleView() {
@@ -929,27 +1191,35 @@
             updateURLHash();
         }
 
-        function displayCurrentData() {
-            const detailsOutput = document.getElementById('detailsOutput');
-            
-            if (!currentRunData) {
-                detailsOutput.innerHTML = 'Select a train run number to see details.';
-                return;
-            }
+		function displayCurrentData() {
+			const detailsOutput = document.getElementById('detailsOutput');
+			const runNumber = document.getElementById('currentRun').textContent.split(' ')[1];
+			
+			if (!currentRunData) {
+				detailsOutput.innerHTML = 'Select a train run number to see details.';
+				return;
+			}
 
-            updateNavigationButtons();
+			updateNavigationButtons();
 
-            if (showingAllTimings) {
-                displayStopsTable(currentRunData);
-            } else if (selectedTrip) {
-                detailsOutput.innerHTML = `
-                    ${createStopsTable(selectedTrip.stops)}
-                `;
-            } else {
-                currentTrips = detectTrips(currentRunData);
-                displayTripsTable(currentTrips);
-            }
-        }
+			if (showingAllTimings) {
+				displayStopsTable(currentRunData);
+			} else if (selectedTrip) {
+				// Create a special parameter object to control which transition messages to show
+				const tripParams = {
+					runNumber: runNumber,
+					showFormedFrom: selectedTrip.tripNumber === 1,  // Only on first trip
+					showFormsRun: selectedTrip.tripNumber === currentTrips.length  // Only on last trip
+				};
+				
+				detailsOutput.innerHTML = `
+					${createStopsTable(selectedTrip.stops, tripParams)}
+				`;
+			} else {
+				currentTrips = detectTrips(currentRunData);
+				displayTripsTable(currentTrips, runNumber);
+			}
+		}
 
         function displayDetails(runNumber, data) {
             currentRunData = data;
@@ -959,77 +1229,259 @@
             displayCurrentData();
         }
 
-        function createStopsTable(stops) {
-            let tableHTML = `
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Location</th>
-                            <th>Pl</th>
-                            <th>Arrival Time</th>
-                            <th>Departure Time</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
+		function createStopsTable(stops, params) {
+			// Handle different parameter formats
+			let runNumber = null;
+			let showFormedFrom = true;
+			let showFormsRun = true;
+			
+			if (typeof params === 'string') {
+				// Old format: just the run number
+				runNumber = params;
+			} else if (params && typeof params === 'object') {
+				// New format: parameter object
+				runNumber = params.runNumber;
+				showFormedFrom = params.showFormedFrom !== false;
+				showFormsRun = params.showFormsRun !== false;
+			}
+			
+			let tableHTML = '';
+			
+			// Add "Formed from" message if applicable, BEFORE the table starts
+			if (runNumber && showFormedFrom) {
+				const formedFrom = getFormedFromRun(runNumber);
+				if (formedFrom) {
+					const timetable = document.getElementById('daySelector').value;
+					const previousRunURL = `#timetable=${timetable}&run=${formedFrom.fromRun}`;
+					
+					// Get the actual last location of the previous run
+					let previousRunLastLocation = '';
+					if (currentRunData[formedFrom.fromRun]) {
+						const previousRunStops = currentRunData[formedFrom.fromRun];
+						const lastStop = previousRunStops[previousRunStops.length - 1];
+						previousRunLastLocation = lastStop.location;
+					}
 
-            stops.forEach(entry => {
-                tableHTML += `
-                    <tr>
-                        <td>${entry.location}</td>
-                        <td>${entry.platform}</td>
-                        <td>${entry.arrivalTime}</td>
-                        <td>${entry.departureTime}</td>
-                    </tr>
-                `;
-            });
+					// If still empty, try to convert from the transition detection
+					if (!previousRunLastLocation && formedFrom.location) {
+						previousRunLastLocation = locationMapping[formedFrom.location.slice(0, 3)] || formedFrom.location;
+					}
 
-            tableHTML += `
-                    </tbody>
-                </table>
-            `;
+					// Fallback to something meaningful if location is empty
+					if (!previousRunLastLocation) {
+						previousRunLastLocation = 'Unknown Location';
+					}
+					
+					tableHTML += `
+						<div style="
+							display: flex; 
+							justify-content: center; 
+							align-items: center; 
+							cursor: pointer; 
+							background-color: #f72f5e; 
+							border: 1px solid #424242; 
+							padding: 5px; 
+							transition: background-color 0.3s; 
+							height: 30px;"
+							onclick="window.location.hash='${previousRunURL}'"
+							onmouseover="this.style.backgroundColor='#d61c4e'"
+							onmouseout="this.style.backgroundColor='#f72f5e'">
+							<span style="color: #ffffff; font-weight: bold; font-size: 0.9em !important;">
+								↪ Formed from Run ${formedFrom.fromRun} departing ${previousRunLastLocation}
+							</span>
+						</div>
+					`;
+				}
+			}
+			
+			// Now start the main table
+			tableHTML += `
+				<table style="margin-top: 0;">
+					<thead>
+						<tr>
+							<th>Location</th>
+							<th>Pl</th>
+							<th>Arrival Time</th>
+							<th>Departure Time</th>
+						</tr>
+					</thead>
+					<tbody>
+			`;
 
-            return tableHTML;
-        }
+			stops.forEach(entry => {
+				tableHTML += `
+					<tr>
+						<td>${entry.location}</td>
+						<td>${entry.platform}</td>
+						<td>${entry.arrivalTime}</td>
+						<td>${entry.departureTime}</td>
+					</tr>
+				`;
+			});
 
-        function displayStopsTable(stops) {
-            document.getElementById('detailsOutput').innerHTML = createStopsTable(stops);
-        }
+			// Close the table
+			tableHTML += `
+					</tbody>
+				</table>
+			`;
 
-        function displayTripsTable(trips) {
-            let tableHTML = `
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Trip</th>
-                            <th>From</th>
-                            <th>Departing</th>
-                            <th>To</th>
-                            <th>Arriving</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
+		// Add "Forms Run" message if applicable, AFTER the table as a separate div
+			if (runNumber && showFormsRun && runTransitions[runNumber]) {
+				const nextRun = runTransitions[runNumber].nextRun;
+				const location = runTransitions[runNumber].toLocation || runTransitions[runNumber].location;
+				
+				const timetable = document.getElementById('daySelector').value;
+				const nextRunURL = `#timetable=${timetable}&run=${nextRun}`;
+				
+				tableHTML += `
+					<div style="
+						display: flex; 
+						justify-content: center; 
+						align-items: center; 
+						cursor: pointer; 
+						background-color: #f72f5e; 
+						border: 1px solid #424242; 
+						padding: 5px; 
+						transition: background-color 0.3s; 
+						height: 30px;
+						margin-top: 0;"
+						onclick="window.location.hash='${nextRunURL}'"
+						onmouseover="this.style.backgroundColor='#d61c4e'"
+						onmouseout="this.style.backgroundColor='#f72f5e'">
+						<span style="color: #ffffff; font-weight: bold; font-size: 0.9em !important;">
+							↪ Forms Run ${nextRun} arriving at ${location}
+						</span>
+					</div>
+				`;
+			}
 
-            trips.forEach(trip => {
-                tableHTML += `
-                    <tr class="clickable" onclick="displayTrip(${JSON.stringify(trip).replace(/"/g, '&quot;')})">
-                        <td style="color: #1e88e5; cursor: pointer;">${trip.tripNumber}</td>
-                        <td>${trip.from}</td>
-                        <td>${trip.departureTime}</td>
-                        <td>${trip.to}</td>
-                        <td>${trip.arrivalTime}</td>
-                    </tr>
-                `;
-            });
+			return tableHTML;
+		}
 
-            tableHTML += `
-                    </tbody>
-                </table>
-            `;
+		function displayStopsTable(stops) {
+			const runNumber = document.getElementById('currentRun').textContent.split(' ')[1];
+			document.getElementById('detailsOutput').innerHTML = createStopsTable(stops, {
+				runNumber: runNumber,
+				showFormedFrom: true,
+				showFormsRun: true
+			});
+		}
 
-            document.getElementById('detailsOutput').innerHTML = tableHTML;
-        }
+		function displayTripsTable(trips, runNumber) {
+			let tableHTML = '';
+			
+			// Add "Formed from" message if applicable, BEFORE the table starts
+			if (runNumber) {
+				const formedFrom = getFormedFromRun(runNumber);
+				if (formedFrom) {
+					const timetable = document.getElementById('daySelector').value;
+					const previousRunURL = `#timetable=${timetable}&run=${formedFrom.fromRun}`;
+					
+					// Get the actual last location of the previous run
+					let previousRunLastLocation = '';
+					if (currentRunData[formedFrom.fromRun]) {
+						const previousRunStops = currentRunData[formedFrom.fromRun];
+						const lastStop = previousRunStops[previousRunStops.length - 1];
+						previousRunLastLocation = lastStop.location;
+					}
+
+					// If still empty, try to convert from the transition detection
+					if (!previousRunLastLocation && formedFrom.location) {
+						previousRunLastLocation = locationMapping[formedFrom.location.slice(0, 3)] || formedFrom.location;
+					}
+
+					// Fallback to something meaningful if location is empty
+					if (!previousRunLastLocation) {
+						previousRunLastLocation = 'Unknown Location';
+					}
+					
+					tableHTML += `
+						<div style="
+							display: flex; 
+							justify-content: center; 
+							align-items: center; 
+							cursor: pointer; 
+							background-color: #f72f5e; 
+							border: 1px solid #424242; 
+							padding: 5px; 
+							transition: background-color 0.3s; 
+							height: 30px;"
+							onclick="window.location.hash='${previousRunURL}'"
+							onmouseover="this.style.backgroundColor='#d61c4e'"
+							onmouseout="this.style.backgroundColor='#f72f5e'">
+							<span style="color: #ffffff; font-weight: bold; font-size: 0.9em !important;">
+								↪ Formed from Run ${formedFrom.fromRun} departing ${previousRunLastLocation}
+							</span>
+						</div>
+					`;
+				}
+			}
+			
+			// Now start the main table
+			tableHTML += `
+				<table style="margin-top: 0;">
+					<thead>
+						<tr>
+							<th>Trip</th>
+							<th>From</th>
+							<th>Departing</th>
+							<th>To</th>
+							<th>Arriving</th>
+						</tr>
+					</thead>
+					<tbody>
+			`;
+
+			trips.forEach(trip => {
+				tableHTML += `
+					<tr class="clickable" onclick="displayTrip(${JSON.stringify(trip).replace(/"/g, '&quot;')})">
+						<td style="color: #1e88e5; cursor: pointer;">${trip.tripNumber}</td>
+						<td>${trip.from}</td>
+						<td>${trip.departureTime}</td>
+						<td>${trip.to}</td>
+						<td>${trip.arrivalTime}</td>
+					</tr>
+				`;
+			});
+
+			// Close the table
+			tableHTML += `
+					</tbody>
+				</table>
+			`;
+
+		// Add "Forms Run" message if applicable, AFTER the table as a separate div
+			if (runNumber && runTransitions[runNumber]) {
+				const nextRun = runTransitions[runNumber].nextRun;
+				const location = runTransitions[runNumber].toLocation || runTransitions[runNumber].location;
+				
+				const timetable = document.getElementById('daySelector').value;
+				const nextRunURL = `#timetable=${timetable}&run=${nextRun}`;
+				
+				tableHTML += `
+					<div style="
+						display: flex; 
+						justify-content: center; 
+						align-items: center; 
+						cursor: pointer; 
+						background-color: #f72f5e; 
+						border: 1px solid #424242; 
+						padding: 5px; 
+						transition: background-color 0.3s; 
+						height: 30px;
+						margin-top: 0;"
+						onclick="window.location.hash='${nextRunURL}'"
+						onmouseover="this.style.backgroundColor='#d61c4e'"
+						onmouseout="this.style.backgroundColor='#f72f5e'">
+						<span style="color: #ffffff; font-weight: bold; font-size: 0.9em !important;">
+							↪ Forms Run ${nextRun} arriving at ${location}
+						</span>
+					</div>
+				`;
+			}
+
+			document.getElementById('detailsOutput').innerHTML = tableHTML;
+		}
 
         function updateURLHash() {
             const timetable = document.getElementById('daySelector').value;
