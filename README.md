@@ -11,6 +11,7 @@ The **DLR Timetable Explorer Tool** is a web-based single-page application for v
 - `main/archivedpaths.txt`: A text file containing links to archived timetable CSV files. (These are hidden from the timetable dropdown but can be navigated to directly by URL or found in the dropdown by using /#archived.)
 - `main/active timetables/`: Directory containing active timetable CSV files.
 - `main/archived timetables/`: Directory containing archived timetable CSV files.
+- `main/serviceoverrides.txt`: A file used to override the current TfL API service status.
 
 ## paths.txt and archivedpaths.txt
 
@@ -76,11 +77,49 @@ The tool checks the latest DLR service status using [https://api.tfl.gov.uk/Line
 - If there is active disruption or service modification, a **warning message** is displayed before users proceed, ensuring they are aware that the timetable cannot be relied upon.
 - A **'Proceed with Caution'** link allows users to access timetable details despite warnings.
 
+### Manual Service Status Overrides
+
+The tool can override the TfL API-reported status using `serviceoverrides.txt`. This file allows the user to define alternative statuses for a specific date or date range.
+
+### serviceoverrides.txt Format
+
+```
+Mapping: <Status Code>
+Applies: <Date or Date Range>
+```
+
+#### Example
+
+```
+Mapping: 7
+Applies: '2025-01-01'
+
+Mapping: 5
+Applies: '2025-01-5/2025-01-10'
+```
+This example forces a "Reduced Service" status on January 1, 2025, and a "Part Closure" status from January 5, 2025 to January 10, 2025.
+
+#### Status Code Reference Table
+
+| Status Code | Description     | Status Code | Description     |
+| ----------- | --------------- | ----------- | --------------- |
+| 0           | Special Service | 6           | Severe Delays   |
+| 1           | Closed          | 7           | Reduced Service |
+| 2           | Suspended       | 9           | Minor Delays    |
+| 3           | Part Suspended  | 10          | Good Service    |
+| 4           | Planned Closure | 11          | Part Closed     |
+| 5           | Part Closure    | 16          | Not Running     |
+| 20          | No Service      |             |                 |
+
+## Automatic 'Run Transition' Detection
+The tool detects and displays when a train transitions from one run number to another. This helps users follow the continuity of a train’s journey across different run numbers throughout the day.
+
 ## URL Hash Navigation
 
-- The tool supports URL hash navigation, allowing users to bookmark and share specific train runs and trips.
+The tool supports URL hash navigation, allowing users to bookmark and share specific train runs and trips.
 - URL structure: `#timetable=<timetable_name>&run=<run_number>&trip=<trip_number>`.
-- URLs remain valid for a timetable after it has been archived as long as its filename remains the same.
+  
+*Note: ********************************************************`URLs remain valid for a timetable after it has been archived as long as its filename remains the same.`*********************************************************
 
 ## Notes
 
