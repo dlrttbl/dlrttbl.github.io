@@ -1,8 +1,23 @@
-Mapping: 6
-Applies: '2025-03-01'
+Mapping: 5
+Applies: '2025-03-01/2025-03-02'
+
+Mapping: 5
+Applies: '2025-03-08/2025-03-09'
+
+Mapping: 5
+Applies: '2025-03-15/2025-03-16'
+
+Mapping: 5
+Applies: '2025-03-22/2025-03-23'
+
+Mapping: 5
+Applies: '2025-03-29/2025-03-30'
+
+Mapping: 5
+Applies: '2025-04-05/2025-04-06'
 
 Mapping: 7
-Applies: '2025-03-06/2025-03-14'
+Applies: '2025-04-11'
 
-Mapping: 6
-Applies: '2025-03-23'
+Mapping: 5
+Applies: '2025-04-18/2025-04-25'
