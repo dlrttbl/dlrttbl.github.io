@@ -223,50 +223,72 @@
 		#detailsOutput table.stops-table tr td:nth-child(4) {
 			width: 15%; /* Arriving, Departing */
 		}
-		
+
 		/* Media query for mobile devices */
 		@media screen and (max-width: 768px) {
-			/* Remove fixed table layout on mobile */
 			table {
 				table-layout: auto;
+				transform: scale(0.95);
+				transform-origin: top left;
+				width: 105%;
+				margin-right: -5%;
+				font-size: 0.95em;
+				margin-bottom: 0;
 			}
 			
-			/* Base styles for all cells */
 			th, td {
 				overflow: visible;
 				text-overflow: clip;
 				width: auto !important;
+				padding: 3px;
+				vertical-align: middle;
 			}
 			
-			/* Trip List Table - non-wrapping columns */
-			#detailsOutput table.trip-list-table tr td:nth-child(1), /* Trip column */
-			#detailsOutput table.trip-list-table tr td:nth-child(3), /* Departing column */
-			#detailsOutput table.trip-list-table tr td:nth-child(5) { /* Arriving column */
+			tr {
+				height: 44px !important;
+			}
+			
+			#detailsOutput table.trip-list-table tr td:nth-child(1),
+			#detailsOutput table.trip-list-table tr td:nth-child(3),
+			#detailsOutput table.trip-list-table tr td:nth-child(5) {
 				white-space: nowrap;
 				min-width: 50px;
 			}
 			
-			/* Stops Table - non-wrapping columns */
-			#detailsOutput table.stops-table tr td:nth-child(2), /* Pl column */
-			#detailsOutput table.stops-table tr td:nth-child(3), /* Arriving column */
-			#detailsOutput table.stops-table tr td:nth-child(4) { /* Departing column */
+			#detailsOutput table.stops-table tr td:nth-child(2),
+			#detailsOutput table.stops-table tr td:nth-child(3),
+			#detailsOutput table.stops-table tr td:nth-child(4) {
 				white-space: nowrap;
 				min-width: 50px;
 			}
 			
-			/* Location columns - allow wrapping but only at word boundaries */
 			#detailsOutput table tr td:nth-child(1) {
 				white-space: normal;
 				word-break: normal;
 				overflow-wrap: break-word;
 			}
 			
-			/* From/To columns in trip list - allow wrapping at word boundaries */
-			#detailsOutput table.trip-list-table tr td:nth-child(2), /* From */
-			#detailsOutput table.trip-list-table tr td:nth-child(4) { /* To */
+			#detailsOutput table.trip-list-table tr td:nth-child(2),
+			#detailsOutput table.trip-list-table tr td:nth-child(4) {
 				white-space: normal;
 				word-break: normal;
 				overflow-wrap: break-word;
+			}
+			
+			#trainDetails {
+				padding: 5px;
+				overflow: hidden;
+			}
+			
+			#detailsOutput {
+				display: inline-block;
+				width: 100%;
+			}
+			
+			#detailsOutput:after {
+				content: "";
+				display: table;
+				clear: both;
 			}
 		}
 	</style>
@@ -1324,6 +1346,34 @@
 			}
 		}
 
+		function filterTable() {
+			const locationFilter = document.getElementById('locationFilter').value.toLowerCase();
+			const platformFilter = document.getElementById('platformFilter').value.toLowerCase();
+			
+			const tableRows = document.querySelectorAll('#detailsOutput table.stops-table tbody tr');
+			
+			tableRows.forEach(row => {
+				const location = row.cells[0].textContent.toLowerCase();
+				const platform = row.cells[1].textContent.toLowerCase();
+				
+				const locationMatch = location.includes(locationFilter);
+				const platformMatch = platform.includes(platformFilter);
+				
+				// Show row if both filters match (or if that filter is empty)
+				if ((locationMatch || locationFilter === '') && 
+					(platformMatch || platformFilter === '')) {
+					row.style.display = '';
+				} else {
+					row.style.display = 'none';
+				}
+			});
+		}
+		function clearFilters() {
+			document.getElementById('locationFilter').value = '';
+			document.getElementById('platformFilter').value = '';
+			filterTable(); // Re-run filter to show all rows
+		}
+
         function displayDetails(runNumber, data) {
             currentRunData = data;
             showingAllTimings = false;
@@ -1463,11 +1513,26 @@
 
 		function displayStopsTable(stops) {
 			const runNumber = document.getElementById('currentRun').textContent.split(' ')[1];
-			document.getElementById('detailsOutput').innerHTML = createStopsTable(stops, {
+			const detailsOutput = document.getElementById('detailsOutput');
+			
+			// Add filter inputs before the table
+			const filterHTML = `
+				<div class="filter-container" style="margin-bottom: 10px; display: flex; gap: 5px;">
+					<input type="text" id="locationFilter" placeholder="Filter by location" style="flex: 2; padding: 5px; background-color: #2c2c2c; color: white; border: 1px solid #424242; border-radius: 4px;">
+					<input type="text" id="platformFilter" placeholder="Filter by platform" style="flex: 1; padding: 5px; background-color: #2c2c2c; color: white; border: 1px solid #424242; border-radius: 4px;">
+				</div>
+			`;
+			
+			// Combine filter and table HTML
+			detailsOutput.innerHTML = filterHTML + createStopsTable(stops, {
 				runNumber: runNumber,
 				showFormedFrom: true,
 				showFormsRun: true
 			});
+			
+			// Add event listeners for filtering
+			document.getElementById('locationFilter').addEventListener('input', filterTable);
+			document.getElementById('platformFilter').addEventListener('input', filterTable);
 		}
 
 		function displayTripsTable(trips, runNumber) {

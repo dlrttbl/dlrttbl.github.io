@@ -277,7 +277,7 @@
 			margin-bottom: 25px;
 			color: #ffffff;
 			font-weight: bold;
-			padding: 0 0 20px 0;
+			padding: 0 0 0px 0;
 			display: flex;
 			flex-wrap: wrap;
 		}
@@ -335,6 +335,12 @@
 		  /* Remove fixed table layout on mobile */
 		  .results-table {
 			table-layout: auto;
+			transform: scale(0.95);
+			transform-origin: top left;
+			width: 105%;
+			margin-right: -5%;
+			font-size: 0.95em;
+			margin-bottom: 0;
 		  }
 		  
 		  /* Base styles for all cells */
@@ -343,6 +349,13 @@
 			overflow: visible;
 			text-overflow: clip;
 			width: auto !important;
+			padding: 3px;
+			vertical-align: middle;
+		  }
+		  
+		  /* Force minimum row height */
+		  .results-table tr {
+			height: 44px !important;
 		  }
 		  
 		  /* Never wrap Run and time columns */
@@ -366,7 +379,19 @@
 			overflow-wrap: break-word;
 			max-width: calc(50% - 75px); /* Distribute remaining space */
 		  }
-		}	
+		  
+		  /* Container fixes for search results */
+		  #searchResults {
+			overflow: hidden;
+			padding: 5px;
+		  }
+		  
+		  #searchResults:after {
+			content: "";
+			display: table;
+			clear: both;
+		  }
+		}
     </style>
 </head>
 <body>
@@ -2188,6 +2213,12 @@
 			const callingAtInput = document.getElementById('callingAtInput').value.trim();
 			const searchResults = document.getElementById('searchResults');
 			
+			// Remove any existing time navigation buttons
+			const existingTimeNav = document.querySelector('.time-navigation');
+			if (existingTimeNav) {
+				existingTimeNav.remove();
+			}
+			
 			// Clear any previous error messages
 			const previousError = document.querySelector('.search-error:not(.time-error)');
 			if (previousError) {
@@ -2261,8 +2292,48 @@
 			// Perform the search
 			const results = searchTrains(locationCode, timeSeconds, callingAtCode);
 			
+			// Add time navigation buttons under search button when results are being displayed
+			addTimeNavigationUnderSearchButton(timeInput);
+			
 			// Display results
 			displaySearchResults(results, locationInput, locationCode, callingAtInput, timeInput);
+		}
+
+		function addTimeNavigationUnderSearchButton(timeInput) {
+			// Remove any existing time navigation
+			const existingTimeNav = document.querySelector('.time-navigation');
+			if (existingTimeNav) {
+				existingTimeNav.remove();
+			}
+			
+			// Create time navigation buttons
+			const timeNavDiv = document.createElement('div');
+			timeNavDiv.className = 'time-navigation';
+			timeNavDiv.style.cssText = `
+				display: flex;
+				justify-content: space-between;
+				margin-top: 10px;
+				gap: 10px;
+			`;
+			
+			const earlierButton = document.createElement('button');
+			earlierButton.textContent = '- 15 mins';
+			earlierButton.style.flex = '1';
+			earlierButton.onclick = () => adjustSearchTime(-15);
+			
+			const laterButton = document.createElement('button');
+			laterButton.textContent = '+ 15 mins';
+			laterButton.style.flex = '1';
+			laterButton.onclick = () => adjustSearchTime(15);
+			
+			timeNavDiv.appendChild(earlierButton);
+			timeNavDiv.appendChild(laterButton);
+			
+			// Add buttons under the search button
+			const searchButton = document.getElementById('searchButton');
+			if (searchButton) {
+				searchButton.parentNode.insertBefore(timeNavDiv, searchButton.nextSibling);
+			}
 		}
 
         function getLocationCodeFromInput(input) {
@@ -2647,7 +2718,49 @@
                 searchResults.appendChild(createResultsTable(results));
             }
         }
-        
+
+		function adjustSearchTime(minutesDelta) {
+			// Get current input values
+			const locationInput = document.getElementById('locationInput').value;
+			let timeInput = document.getElementById('timeInput').value;
+			const callingAtInput = document.getElementById('callingAtInput').value;
+			
+			// Parse the current time
+			let [hours, minutes] = timeInput.split(':').map(Number);
+			
+			// Adjust minutes
+			minutes += minutesDelta;
+			
+			// Handle carry-over
+			while (minutes >= 60) {
+				hours++;
+				minutes -= 60;
+			}
+			
+			while (minutes < 0) {
+				hours--;
+				minutes += 60;
+			}
+			
+			// Handle hour wraparound (for 24-hour clock)
+			if (hours >= 24) {
+				hours = hours % 24;
+			}
+			
+			if (hours < 0) {
+				hours = 24 + hours;
+			}
+			
+			// Format back to HH:MM
+			const newTimeInput = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+			
+			// Update the time input field
+			document.getElementById('timeInput').value = newTimeInput;
+			
+			// Perform a new search
+			performSearch();
+		}
+
         function createResultsTable(results) {
             const table = document.createElement('table');
             table.className = 'results-table';
