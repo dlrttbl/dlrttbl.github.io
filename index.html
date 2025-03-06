@@ -297,7 +297,7 @@
                 <div class="button-group" id="navigationButtons"></div>
             </div>
         </div>
-        <div style="margin-bottom: 5px;" id="detailsOutput">Select a run to view info, or switch to <a href="/search" style="color: #1e88e5; text-decoration: none;">search by location</a>.</div>
+        <div style="margin-bottom: 5px;" id="detailsOutput">Select a run to view info, or switch to <a href="/search" style="color: #1e88e5; text-decoration: none;">search by location</a> (New!)</div>
     </div>
 
 	<style>
@@ -330,8 +330,10 @@
 			<b>no liability is taken for any incorrect information shown.</b><br><br>
 			This tool uses the base WTTs (currently <span id="timetableFiles"></span>) and will be incorrect during periods of modified working 
 			(e.g., weekend engineering works).<br><br>
-			Last updated 01/03/25, the tool now automatically detects and shows when runs transition throughout the day (i.e Run 302 becoming Run 456.)<br><br>
-			19/02/25, the tool will now default to the correct timetable for the current day of the week, and has had live service status added to warn when info is likely incorrect.
+			<b>Updates:</b><br>
+			06/03/25 Added a brand new 'search by location' page! You can now look up train services based on locations, platform number, and departure time.<br><br>
+			01/03/25 The tool now automatically detects and shows when runs transition throughout the day (i.e Run 302 becoming Run 456.)<br><br>
+			19/02/25 The tool will now default to the correct timetable for the current day of the week, and has had live service status added to warn when info is likely incorrect.
 		</div>
 	</div>
 
@@ -1297,7 +1299,7 @@
 			const runNumber = document.getElementById('currentRun').textContent.split(' ')[1];
 			
 			if (!currentRunData) {
-				detailsOutput.innerHTML = 'Select a run to view info, or switch to <a href="/search" style="color: #1e88e5; text-decoration: none;">search by location</a>.';
+				detailsOutput.innerHTML = 'Select a run to view info, or switch to <a href="/search" style="color: #1e88e5; text-decoration: none;">search by location</a> (New!)';
 				return;
 			}
 
@@ -1600,7 +1602,7 @@
             currentRunData = null;
             selectedTrip = null;
             document.getElementById('currentRun').textContent = '';
-            document.getElementById('detailsOutput').innerHTML = 'Select a run to view info, or switch to <a href="/search" style="color: #1e88e5; text-decoration: none;">search by location</a>.';
+            document.getElementById('detailsOutput').innerHTML = 'Select a run to view info, or switch to <a href="/search" style="color: #1e88e5; text-decoration: none;">search by locattion</a> (New!)';
             updateNavigationButtons();
         }
     </script>
