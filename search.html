@@ -1,0 +1,2730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DLR Timetable Explorer - Search</title>
+    <style>
+		body {
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			margin: 10px;
+			background-color: #121212;
+			color: #ffffff;
+		}
+		h1, h2, h3 {
+			color: #ffffff;
+			margin: 0;
+			font-size: 1.2em;
+		}
+		button {
+			background-color: #1e88e5;
+			color: #ffffff;
+			border: none;
+			padding: 6px 10px;
+			font-size: 14px;
+			cursor: pointer;
+			border-radius: 5px;
+		}
+		button:hover {
+			background-color: #1565c0;
+		}
+		button:disabled {
+			background-color: #455a64;
+			cursor: not-allowed;
+		}
+		button.red-background {
+			background-color: #e53935;
+		}
+		button.red-background:hover {
+			background-color: #c62828;
+		}
+		#trainRunList {
+			margin-bottom: 10px;
+			border: 1px solid #424242;
+			padding: 10px;
+			border-radius: 5px;
+			background-color: #1e1e1e;
+		}
+		#aboutText, #warningText {
+			display: none;
+			margin-top: 10px;
+			background-color: #1e1e1e;
+			padding: 10px;
+			border-radius: 5px;
+			border: 1px solid #424242;
+		}
+		#warningSection {
+			display: none;
+			margin-bottom: 10px;
+			border: 1px solid #424242;
+			padding: 10px;
+			border-radius: 5px;
+			background-color: #1c1121;
+		}        
+		#warningSection h2 {
+			font-size: 1.2em;
+			margin: 0 0 5px 0;
+		}        
+		.grid-container {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
+			gap: 5px;
+		}
+		.run-number {
+			cursor: pointer;
+			color: #1e88e5;
+			text-align: center;
+			padding: 6px;
+			border-radius: 5px;
+			border: 1px solid #424242;
+			transition: background-color 0.3s, color 0.3s;
+			font-size: 0.9em;
+		}
+		.run-number:hover {
+			background-color: #424242;
+			color: #ffffff;
+		}
+		.header-container {
+			display: flex;
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 5px;
+			margin-bottom: 5px;
+		}
+		.subheader-container {
+			display: flex;
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 5px;
+			margin-top: 0;
+		}        
+		.navigation-container {
+			display: flex;
+			align-items: center;
+			gap: 5px;
+			margin: 5px 0;
+		}
+		.button-group {
+			display: flex;
+			flex-direction: row;
+			gap: 5px;
+			align-items: center;
+		}
+		#currentRun {
+			font-size: 1.7em;
+			margin-bottom: 10px;
+		}
+		#trainDetails {
+			margin-top: 5px;
+			background-color: #1e1e1e;
+			padding: 10px;
+			border-radius: 5px;
+			border: 1px solid #424242;
+			box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+		}
+		table {
+			width: 100%;
+			border-collapse: collapse;
+			margin-top: 5px;
+			table-layout: fixed;
+		}
+		th, td {
+			border: 1px solid #424242;
+			padding: 5px;
+			text-align: center;
+			font-size: 0.9em;
+			overflow: hidden;
+			word-break: break-word;
+		}
+		th {
+			background-color: #1e88e5;
+			color: white;
+		}
+		tr:nth-child(even) {
+			background-color: #2c2c2c;
+		}
+		tr.clickable {
+			cursor: pointer;
+		}
+		tr.clickable:hover {
+			background-color: #424242;
+		}
+		#aboutSection {
+			margin-top: 20px;
+			max-width: 800px;
+			margin-left: auto;
+			margin-right: auto;
+		}
+		#aboutText {
+			display: none;
+			margin-top: 10px;
+			background-color: #1e1e1e;
+			padding: 10px;
+			border-radius: 5px;
+			border: 1px solid #424242;
+		}
+		a {
+			color: #1e88e5;
+			text-decoration: none;
+		}
+		a:hover {
+			text-decoration: underline;
+		}
+		.mint-green {
+			color: #98ff98;
+		}
+
+		/* Search-specific styles */
+		#searchSection {
+			margin-bottom: 10px;
+			border: 1px solid #424242;
+			padding: 10px;
+			border-radius: 5px;
+			background-color: #1e1e1e;
+			max-width: 800px;
+			margin-left: auto;
+			margin-right: auto;
+		}
+		#searchResults {
+			margin-top: 10px;
+			background-color: #1e1e1e;
+			padding: 10px;
+			border-radius: 5px;
+			border: 1px solid #424242;
+			max-width: 800px;
+			margin-left: auto;
+			margin-right: auto;
+		}
+		.search-field {
+			margin-bottom: 10px;
+		}
+		.search-field label {
+			display: block;
+			margin-bottom: 5px;
+		}
+		.search-field input[type="text"] {
+			width: 100%;
+			padding: 8px;
+			background-color: #2c2c2c;
+			border: 1px solid #424242;
+			border-radius: 5px;
+			color: #ffffff;
+			font-size: 14px;
+			box-sizing: border-box;
+		}
+		.autocomplete-container {
+			position: relative;
+			width: 100%;
+		}
+		.suggestions-container {
+			display: none;
+			position: absolute;
+			width: 100%;
+			max-height: 300px;
+			overflow-y: auto;
+			background-color: #2c2c2c;
+			border: 1px solid #424242;
+			border-radius: 5px;
+			z-index: 10;
+			margin-top: 2px;
+		}
+		.suggestion-item {
+			padding: 8px 10px;
+			cursor: pointer;
+			transition: background-color 0.3s;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			height: 40px; /* Fixed height for all suggestions */
+		}
+		.suggestion-item:hover {
+			background-color: #424242;
+		}
+		.platform-text {
+			color: #a0a0a0;
+		}
+		.station-name {
+			flex-grow: 1;
+		}
+		.platform-selector {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			margin-left: 10px;
+			cursor: pointer;
+			height: 40px;
+		}
+		.platform-selector svg {
+			height: 100%;
+		}
+		#searchButton {
+			margin-top: 10px;
+			width: 100%;
+			padding: 10px;
+			font-size: 16px;
+		}
+		.platform-header {
+			margin-top: 30px;
+			margin-bottom: 10px;
+			font-size: 1.1em;
+			color: #ffffff;
+			font-weight: bold;
+			padding-bottom: 10px;
+		}
+		.location-header {
+			font-size: 1.7em;
+			margin-bottom: 25px;
+			color: #ffffff;
+			font-weight: bold;
+			padding: 0 0 20px 0;
+			display: flex;
+			flex-wrap: wrap;
+		}
+		.header-train-text {
+			white-space: nowrap;
+			margin-right: 5px;
+		}
+		.header-location-text {
+			white-space: nowrap;
+			margin-right: 5px;
+		}
+		.header-calling-text {
+			white-space: nowrap;
+			margin-right: 5px;
+		}
+		.header-time-text {
+			white-space: nowrap;
+		}
+		.no-results {
+			text-align: center;
+			padding: 20px;
+			color: #e53935;
+		}
+
+		/* Custom column widths for search results table */
+		.results-table th:nth-child(1), 
+		.results-table td:nth-child(1) {
+			width: 10%;
+		}
+		.results-table th:nth-child(2), 
+		.results-table td:nth-child(2), 
+		.results-table th:nth-child(3), 
+		.results-table td:nth-child(3) {
+			width: 30%;
+		}
+		.results-table th:nth-child(4), 
+		.results-table td:nth-child(4), 
+		.results-table th:nth-child(5), 
+		.results-table td:nth-child(5) {
+			width: 15%;
+		}
+
+		.time-input {
+			font-family: monospace;
+			letter-spacing: 1px;
+		}
+
+		@keyframes gradientCycle {
+			0% { background-position: 150% 0%, 0% 50%; }
+			33% { background-position: 100% 100%, 50% 50%; }
+			66% { background-position: 50% 50%, 100% 0%; }
+			100% { background-position: 0% 0%, 150% 50%; }
+		}
+		@media screen and (max-width: 768px) {
+		  /* Remove fixed table layout on mobile */
+		  .results-table {
+			table-layout: auto;
+		  }
+		  
+		  /* Base styles for all cells */
+		  .results-table th, 
+		  .results-table td {
+			overflow: visible;
+			text-overflow: clip;
+			width: auto !important;
+		  }
+		  
+		  /* Never wrap Run and time columns */
+		  .results-table th:nth-child(1), /* Run column */
+		  .results-table td:nth-child(1),
+		  .results-table th:nth-child(4), /* Arriving column */
+		  .results-table td:nth-child(4),
+		  .results-table th:nth-child(5), /* Departing column */
+		  .results-table td:nth-child(5) {
+			white-space: nowrap;
+			min-width: 50px; /* Minimum width */
+		  }
+		  
+		  /* Only allow wrapping on location columns */
+		  .results-table th:nth-child(2), /* From column */
+		  .results-table td:nth-child(2),
+		  .results-table th:nth-child(3), /* To column */
+		  .results-table td:nth-child(3) {
+			white-space: normal;
+			word-break: normal;
+			overflow-wrap: break-word;
+			max-width: calc(50% - 75px); /* Distribute remaining space */
+		  }
+		}	
+    </style>
+</head>
+<body>
+    <div class="content-wrapper">
+        <h1>DLR Timetable Explorer Tool</h1>
+        <div style="margin-bottom: 10px;">
+            <label for="daySelector">Select Timetable:</label>
+            <select id="daySelector" onchange="processCSVAndUpdateURL()">
+            </select>
+        </div>
+    </div>
+    
+    <div id="warningSection">
+        <h2>Warning</h2>
+        <div id="warningContent"></div>
+        <a href="#" id="proceedLink" onclick="showSearchInterface(); return false;" style="display: none;">Proceed with caution.</a>
+    </div>
+    
+    <div id="searchSection" style="display: none;">
+        <h2>Search Train Services</h2>
+        <form id="searchForm" onsubmit="performSearch(); return false;">
+            <div class="search-field">
+                <label for="locationInput">Location:</label>
+                <div class="autocomplete-container">
+                    <input type="text" id="locationInput" placeholder="Enter station or platform (e.g., Poplar, POP4)" autocomplete="off">
+                    <div id="locationSuggestions" class="suggestions-container"></div>
+                </div>
+            </div>
+            
+            <div class="search-field">
+                <label for="timeInput">Around:</label>
+                <input type="text" id="timeInput" class="time-input" placeholder="HH:MM" autocomplete="off" maxlength="5">
+            </div>
+            
+            <div class="search-field">
+                <label for="callingAtInput">Calling at (optional):</label>
+                <div class="autocomplete-container">
+                    <input type="text" id="callingAtInput" placeholder="Enter station or platform" autocomplete="off">
+                    <div id="callingAtSuggestions" class="suggestions-container"></div>
+                </div>
+            </div>
+            
+            <button type="submit" id="searchButton">Search</button>
+        </form>
+    </div>
+    
+    <div id="searchResults" style="display: none;">
+        <!-- Results will be populated here -->
+    </div>
+
+    <div id="aboutSection">
+        <a href="#" id="aboutLink" onclick="toggleAboutSection(); return false;">About this tool</a>
+        <div id="aboutText">
+            Created by <span style="background: linear-gradient(to right, 
+                                hsl(300, 80%, 70%), 
+                                hsl(270, 80%, 61%), 
+                                hsl(235, 85%, 55%), 
+                                hsl(300, 80%, 70%)); 
+                              background-size: 300% 300%; 
+                              -webkit-background-clip: text; 
+                              color: transparent; 
+                              font-weight: bold; 
+                              animation: gradientCycle 5s linear infinite;">
+                              Omari A.</span> 🏳️‍🌈 using 
+            <a href="https://tfl.gov.uk/corporate/transparency/freedom-of-information/foi-request-detail?referenceId=FOI-2196-2425" target="_blank">
+                publicly available data
+            </a>.<br><br>
+            This is a simple tool that pulls data from the raw Working Timetable (WTT) files. However, there may be unknown issues, and 
+            <b>no liability is taken for any incorrect information shown.</b><br><br>
+            This tool uses the base WTTs (currently <span id="timetableFiles"></span>) and will be incorrect during periods of modified working 
+            (e.g., weekend engineering works).<br><br>
+            Last updated 01/03/25, the tool now automatically detects and shows when runs transition throughout the day (i.e Run 302 becoming Run 456.)<br><br>
+            19/02/25, the tool will now default to the correct timetable for the current day of the week, and has had live service status added to warn when info is likely incorrect.
+        </div>
+    </div>
+
+    <script>
+        const STATUS_MAPPINGS = {
+            0: { name: 'Special Service', color: '#f9ff00', suffix: 'that the DLR is operating a Special Service.' },
+            1: { name: 'Closed', color: '#F44336', suffix: 'that the DLR is Closed.' },
+            2: { name: 'Suspended', color: '#ff0000', suffix: 'that the DLR is Suspended.' },
+            3: { name: 'Part Suspended', color: '#ff0000', suffix: 'that the DLR is Part Suspended.' },
+            4: { name: 'Planned Closure', color: '#f9ff00', suffix: 'a Planned Closure on the DLR.' },
+            5: { name: 'Part Closure', color: '#f9ff00', suffix: 'a Part Closure on the DLR.' },
+            6: { name: 'Severe Delays', color: '#ff0000', suffix: 'Severe Delays on the DLR.' },
+            7: { name: 'Reduced Service', color: '#f9ff00', suffix: 'a Reduced Service on the DLR.' },
+            9: { name: 'Minor Delays', color: '#ff9b00', suffix: 'Minor Delays on the DLR.' },
+            10: { name: 'Good Service', color: '#4CAF50', suffix: 'that the DLR is operating with a Good Service.' },
+            11: { name: 'Part Closed', color: '#f9ff00', suffix: 'that the DLR is Part Closed.' },
+            16: { name: 'Not Running', color: '#ff0000', suffix: 'that the DLR is Not Running.' },
+            20: { name: 'No Service', color: '#ff0000', suffix: 'No Service on the DLR.' }
+        };
+
+        const WARNING_TRIGGERS = [0, 2, 3, 4, 5, 6, 7, 8, 9, 11];
+
+        // Location mapping (same as in index.html)
+        const locationMapping = {
+            'ABR': 'Abbey Road', 'ALS': 'All Saints', 'BAN': 'Bank', 'BEC': 'Beckton', 
+            'BEP': 'Beckton Park', 'BLA': 'Blackwall', 'BOC': 'Bow Church', 'CAW': 'Canary Wharf',
+            'CAT': 'Canning Town', 'CRO': 'Crossharbour', 'CUH': 'Custom House', 'CUS': 'Cutty Sark',
+            'CYP': 'Cyprus', 'DEB': 'Deptford Bridge', 'DER': 'Devons Road', 'EAI': 'East India',
+            'ELR': 'Elverson Road', 'GAR': 'Gallions Reach', 'GRE': 'Greenwich', 'HEQ': 'Heron Quays',
+            'ISG': 'Island Gardens', 'KGV': 'King George V', 'LAP': 'Langdon Park', 'LEW': 'Lewisham',
+            'LIM': 'Limehouse', 'LCA': 'London City Airport', 'MUD': 'Mudchute', 'PDK': 'Pontoon Dock',
+            'POP': 'Poplar', 'PRR': 'Prince Regent', 'PML': 'Pudding Mill Lane', 'ROA': 'Royal Albert',
+            'ROV': 'Royal Victoria', 'SHA': 'Shadwell', 'SOQ': 'South Quay', 'STL': 'Star Lane',
+            'SHS': 'Stratford High Street', 'STI': 'Stratford International', 'STR': 'Stratford',
+            'TOG': 'Tower Gateway', 'WEH': 'West Ham', 'WIQ': 'West India Quay', 'WST': 'West Silvertown',
+            'WES': 'Westferry', 'WOA': 'Woolwich Arsenal'
+        };
+
+        // Special platform replacements
+        const specialPlatformReplacements = {
+            'LEW6': 'LEW5_6',
+            'BEC2': 'BEC1_2',
+            'STI1': 'STI1_2',
+            'WOA4': 'WOA3_4',
+            'STR4B': 'STR4a_4b'
+        };
+
+        // Stations with "departures only" treatment like Bank Headshunt
+        const departuresOnlyStations = ['LEW', 'BEC', 'STI', 'WOA', 'STR', 'BANH'];
+
+        // Create reverse mapping for autocomplete
+        const reverseLocationMapping = {};
+        Object.entries(locationMapping).forEach(([code, name]) => {
+            reverseLocationMapping[name.toLowerCase()] = code;
+        });
+
+        // Core variables from index.html
+        let currentRunData = null;
+        let showingAllTimings = false;
+        let selectedTrip = null;
+        let currentTrips = [];
+        let timetablePaths = {};
+        let archivedTimetablePaths = {};
+        let currentPath = null;
+        let isLoadingFromURL = false;
+        let runTransitions = {};
+        
+        // Search-specific variables
+        let stationData = {}; // Will hold processed station/platform data
+        let allTripsData = []; // Will hold all trips across all runs
+        let searchResults = []; // Will hold search results
+
+        async function checkTfLStatus() {
+            try {
+                // Fetch service overrides
+                const overrideResponse = await fetch('https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/serviceoverrides.txt', { cache: 'no-store' });
+                const overrideText = await overrideResponse.text();
+                const overrideLines = overrideText.split('\n').filter(line => line.trim() !== '');
+                
+                // Get current operating date
+                const operatingDate = getOperatingDate();
+                
+                // Process service overrides
+                let overrideStatus = null;
+                let currentEntry = {};
+                const serviceOverrides = [];
+                
+                for (const line of overrideLines) {
+                    const trimmedLine = line.trim();
+                    if (trimmedLine.startsWith('Mapping:')) {
+                        if (Object.keys(currentEntry).length > 0) {
+                            serviceOverrides.push({...currentEntry});
+                        }
+                        currentEntry = {
+                            mapping: parseInt(trimmedLine.substring(8).trim(), 10)
+                        };
+                    } else if (trimmedLine.startsWith('Applies:')) {
+                        currentEntry.applies = trimmedLine.substring(8).trim().replace(/['"]/g, '');
+                    }
+                }
+                
+                // Add the last entry
+                if (Object.keys(currentEntry).length > 0) {
+                    serviceOverrides.push(currentEntry);
+                }
+                
+                // Find applicable override
+                const applicableOverride = serviceOverrides.find(entry => {
+                    const ranges = entry.applies.split(',').map(r => r.trim());
+                    return ranges.some(range => {
+                        // Handle single date or date range
+                        if (range.includes('/')) {
+                            const [start, end] = range.split('/').map(d => {
+                                const newDate = new Date(d.trim());
+                                newDate.setHours(0, 0, 0, 0);
+                                return newDate;
+                            });
+                            const compareDate = new Date(operatingDate);
+                            compareDate.setHours(0, 0, 0, 0);
+                            return compareDate >= start && compareDate <= end;
+                        } else {
+                            // Single date
+                            const date = new Date(range);
+                            date.setHours(0, 0, 0, 0);
+                            const compareDate = new Date(operatingDate);
+                            compareDate.setHours(0, 0, 0, 0);
+                            return +compareDate === +date;
+                        }
+                    });
+                });
+                
+                // Fetch TfL status
+                const response = await fetch('https://api.tfl.gov.uk/Line/dlr/Status');
+                const data = await response.json();
+                const statuses = data[0].lineStatuses;
+                
+                // Use the override status if one is found, otherwise use the TfL API status
+                const statusToUse = applicableOverride !== undefined 
+                    ? [{ statusSeverity: applicableOverride.mapping }] 
+                    : statuses;
+                
+                // Filter only the statuses that are in both our warning triggers AND our mappings
+                const warningStatuses = statusToUse.filter(status => 
+                    WARNING_TRIGGERS.includes(status.statusSeverity) && 
+                    STATUS_MAPPINGS[status.statusSeverity]
+                );
+                
+                if (warningStatuses.length > 0) {
+                    // Sort by severity (lower number = more severe)
+                    const mostSevereStatus = warningStatuses.sort((a, b) => 
+                        a.statusSeverity - b.statusSeverity
+                    )[0];
+                    
+                    const statusInfo = STATUS_MAPPINGS[mostSevereStatus.statusSeverity];
+                    const warningContent = document.getElementById('warningContent');
+                    const proceedLink = document.getElementById('proceedLink');
+                    
+                    warningContent.innerHTML = `TfL is currently reporting ${statusInfo.suffix.replace(statusInfo.name, `<span style="color: ${statusInfo.color}">${statusInfo.name}</span>`)} <br>As a result the information on this page is likely to be incorrect. `;
+                    
+                    document.getElementById('warningSection').style.display = 'block';
+                    
+                    // Handle direct URLs
+                    const hash = window.location.hash;
+                    if (hash) {
+                        proceedLink.style.display = 'none';
+                        document.getElementById('searchSection').style.display = 'block';
+                        document.getElementById('searchResults').style.display = 'block';
+                    } else {
+                        proceedLink.style.display = 'inline';
+                        warningContent.appendChild(proceedLink);
+                        document.getElementById('searchSection').style.display = 'none';
+                        document.getElementById('searchResults').style.display = 'none';
+                    }
+                } else {
+                    // If no warnings, show search interface
+                    showSearchInterface();
+                }
+            } catch (error) {
+                console.error('Error checking TfL status:', error);
+                // If error, show search interface anyway
+                showSearchInterface();
+            }
+        }
+
+        function showSearchInterface() {
+            document.getElementById('searchSection').style.display = 'block';
+            document.getElementById('searchResults').style.display = 'block';
+            document.getElementById('proceedLink').style.display = 'none';
+        }
+    
+        function toggleAboutSection() {
+            const aboutText = document.getElementById('aboutText');
+            if (aboutText.style.display === 'none' || aboutText.style.display === '') {
+                aboutText.style.display = 'block';
+            } else {
+                aboutText.style.display = 'none';
+            }
+        }
+
+        function getOperatingDate() {
+            const now = new Date();
+            // If it's before 3 AM, use the previous day's date
+            if (now.getHours() < 3) {
+                now.setDate(now.getDate() - 1);
+            }
+            return now;
+        }
+
+        function parseDateRange(dateStr) {
+            // Remove quotes first
+            dateStr = dateStr.replace(/['"]/g, '');
+            
+            // Handle date ranges with '/'
+            if (dateStr.includes('/')) {
+                const [start, end] = dateStr.split('/').map(d => {
+                    const newDate = new Date(d.trim());
+                    newDate.setHours(0, 0, 0, 0);
+                    return newDate;
+                });
+                return { start, end };
+            }
+            
+            // Handle single date
+            const newDate = new Date(dateStr);
+            newDate.setHours(0, 0, 0, 0);
+            return { 
+                start: newDate, 
+                end: newDate 
+            };
+        }
+
+        function getDayName(date) {
+            return date.toLocaleDateString('en-US', { weekday: 'long' });
+        }
+
+        function isDateInRange(date, rangeStr) {
+            // Remove quotes and split by comma if multiple values
+            const ranges = rangeStr.split(',').map(r => r.trim().replace(/['"]/g, ''));
+            
+            // Check each range
+            return ranges.some(range => {
+                // If it's a day name
+                if (['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].includes(range)) {
+                    return getDayName(date) === range;
+                }
+                
+                // If it's a date or date range
+                const dateRange = parseDateRange(range);
+                const compareDate = new Date(date);
+                compareDate.setHours(0, 0, 0, 0);
+                return compareDate >= dateRange.start && compareDate <= dateRange.end;
+            });
+        }
+        
+        function sortTimetablesByApplicability(entries) {
+            const operatingDate = getOperatingDate();
+            const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            
+            return entries.sort((a, b) => {
+                const aApplies = a.applies.split(',').map(s => s.trim().replace(/['"]/g, ''));
+                const bApplies = b.applies.split(',').map(s => s.trim().replace(/['"]/g, ''));
+                
+                // Check if either timetable has a specific date (anything that's not a day name)
+                const aHasSpecificDate = aApplies.some(range => !dayNames.includes(range));
+                const bHasSpecificDate = bApplies.some(range => !dayNames.includes(range));
+                
+                // Check if either timetable applies to the current date/day
+                const aAppliesNow = aApplies.some(range => isDateInRange(operatingDate, range));
+                const bAppliesNow = bApplies.some(range => isDateInRange(operatingDate, range));
+                
+                // If both apply now, specific dates take precedence
+                if (aAppliesNow && bAppliesNow) {
+                    if (aHasSpecificDate && !bHasSpecificDate) return -1;
+                    if (!aHasSpecificDate && bHasSpecificDate) return 1;
+                }
+                
+                // Then timetables that apply today
+                if (aAppliesNow && !bAppliesNow) return -1;
+                if (!aAppliesNow && bAppliesNow) return 1;
+                
+                // If neither applies, sort by name
+                return a.name.localeCompare(b.name);
+            });
+        }
+
+        async function fetchTimetablePaths() {
+            try {
+                // Fetch main timetables
+                const response = await fetch('https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/paths.txt', { cache: 'no-store' });
+                const text = await response.text();
+                const lines = text.split('\n').filter(line => line.trim() !== '');
+                
+                let currentEntry = {};
+                const timetableEntries = [];
+                
+                // Parse the new format
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    if (trimmedLine.startsWith('Name:')) {
+                        if (Object.keys(currentEntry).length > 0) {
+                            timetableEntries.push({...currentEntry});
+                        }
+                        currentEntry = {
+                            name: trimmedLine.substring(5).trim()
+                        };
+                    } else if (trimmedLine.startsWith('Applies:')) {
+                        currentEntry.applies = trimmedLine.substring(8).trim();
+                    } else if (trimmedLine.startsWith('URL:')) {
+                        currentEntry.url = trimmedLine.substring(4).trim();
+                        const fileName = currentEntry.url.substring(currentEntry.url.lastIndexOf('/') + 1, currentEntry.url.lastIndexOf('.'));
+                        currentEntry.fileName = fileName.toLowerCase();
+                    }
+                }
+                
+                // Add the last entry
+                if (Object.keys(currentEntry).length > 0) {
+                    timetableEntries.push(currentEntry);
+                }
+
+                // Fetch archived timetables
+                try {
+                    const archivedResponse = await fetch('https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/archivedpaths.txt', { cache: 'no-store' });
+                    const archivedText = await archivedResponse.text();
+                    const archivedLines = archivedText.split('\n').filter(line => line.trim() !== '');
+                    
+                    let currentArchivedEntry = {};
+                    // Process archived timetables
+                    for (const line of archivedLines) {
+                        const trimmedLine = line.trim();
+                        if (trimmedLine.startsWith('Name:')) {
+                            if (Object.keys(currentArchivedEntry).length > 0) {
+                                const fileName = currentArchivedEntry.url.substring(currentArchivedEntry.url.lastIndexOf('/') + 1, currentArchivedEntry.url.lastIndexOf('.'));
+                                archivedTimetablePaths[fileName.toLowerCase()] = {
+                                    url: currentArchivedEntry.url,
+                                    name: currentArchivedEntry.name
+                                };
+                            }
+                            currentArchivedEntry = {
+                                name: trimmedLine.substring(5).trim()
+                            };
+                        } else if (trimmedLine.startsWith('URL:')) {
+                            currentArchivedEntry.url = trimmedLine.substring(4).trim();
+                        }
+                    }
+                    // Add the last archived entry
+                    if (Object.keys(currentArchivedEntry).length > 0) {
+                        const fileName = currentArchivedEntry.url.substring(currentArchivedEntry.url.lastIndexOf('/') + 1, currentArchivedEntry.url.lastIndexOf('.'));
+                        archivedTimetablePaths[fileName.toLowerCase()] = {
+                            url: currentArchivedEntry.url,
+                            name: currentArchivedEntry.name
+                        };
+                    }
+                } catch (error) {
+                    console.error('Error fetching archived timetable paths:', error);
+                }
+
+                // Clear and populate the day selector
+                const select = document.getElementById('daySelector');
+                select.innerHTML = '';
+                
+                // Sort timetables based on current date and time
+                const sortedEntries = sortTimetablesByApplicability(timetableEntries);
+                
+                // Process entries
+                sortedEntries.forEach(entry => {
+                    timetablePaths[entry.fileName] = entry.url;
+                    
+                    const option = document.createElement('option');
+                    option.value = entry.fileName;
+                    option.textContent = entry.name;
+                    select.appendChild(option);
+                });
+
+                // Update the about section
+                const fileNames = sortedEntries.map(entry => 
+                    `'<span class="mint-green">${entry.fileName}</span>'`
+                );
+                const fileNamesText = fileNames.length > 1
+                    ? fileNames.slice(0, -1).join(', ') + ', and ' + fileNames.slice(-1)
+                    : fileNames[0];
+                document.getElementById('timetableFiles').innerHTML = fileNamesText;
+                
+                return sortedEntries[0]?.fileName; // Return the most applicable timetable
+            } catch (error) {
+                console.error('Error fetching timetable paths:', error);
+                return null;
+            }
+        }
+
+        function showArchivedTimetables() {
+            const select = document.getElementById('daySelector');
+            // Clear existing options
+            select.innerHTML = '';
+            
+            // Get original names from paths.txt by fetching again
+            const fetchNames = async () => {
+                const response = await fetch('https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/paths.txt', { cache: 'no-store' });
+                const text = await response.text();
+                const lines = text.split('\n').filter(line => line.trim() !== '');
+                
+                let currentEntry = {};
+                const timetableEntries = [];
+                
+                // Parse the active timetables
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    if (trimmedLine.startsWith('Name:')) {
+                        if (Object.keys(currentEntry).length > 0) {
+                            timetableEntries.push({...currentEntry});
+                        }
+                        currentEntry = {
+                            name: trimmedLine.substring(5).trim()
+                        };
+                    } else if (trimmedLine.startsWith('URL:')) {
+                        currentEntry.url = trimmedLine.substring(4).trim();
+                        const fileName = currentEntry.url.substring(currentEntry.url.lastIndexOf('/') + 1, currentEntry.url.lastIndexOf('.'));
+                        currentEntry.fileName = fileName.toLowerCase();
+                    }
+                }
+                
+                // Add the last entry
+                if (Object.keys(currentEntry).length > 0) {
+                    timetableEntries.push(currentEntry);
+                }
+
+                // Add active timetables
+                timetableEntries.forEach(entry => {
+                    const option = document.createElement('option');
+                    option.value = entry.fileName;
+                    option.textContent = entry.name;
+                    select.appendChild(option);
+                });
+
+                // Add archived timetables
+                Object.entries(archivedTimetablePaths).forEach(([fileName, data]) => {
+                    const option = document.createElement('option');
+                    option.value = fileName;
+                    option.textContent = data.name;
+                    select.appendChild(option);
+                });
+            };
+
+            fetchNames();
+        }
+
+        async function detectRunTransitions() {
+            // Fetch the raw CSV data again
+            let csvText = '';
+            try {
+                const response = await fetch(currentPath);
+                csvText = await response.text();
+            } catch (error) {
+                console.error('Error loading CSV data for transition detection:', error);
+                return {};
+            }
+
+            const lines = csvText.split('\n').filter(line => line.trim() !== '');
+            const transitions = {};
+            
+            // Adjacency map of DLR stations
+            const adjacencyMap = {
+                "ABR": ["SHS", "WEH"],
+                "ALS": ["LAP", "POP"],
+                "BAN": ["SHA", "BANH"],
+                "BANH": ["BAN"],
+                "BEC": ["GAR"],
+                "BEP": ["CYP", "ROA"],
+                "BLA": ["EAI", "POP"],
+                "BOC": ["DER", "PML"],
+                "CAT": ["EAI", "ROV", "STL", "WST"],
+                "CAW": ["HEQ", "WES", "WIQ"],
+                "CRO": ["MUD", "SOQ"],
+                "CUH": ["PRR", "ROV"],
+                "CUS": ["GRE", "ISG"],
+                "CYP": ["BEP", "GAR"],
+                "DEB": ["ELR", "GRE"],
+                "DER": ["BOC", "LAP"],
+                "EAI": ["BLA", "CAT"],
+                "ELR": ["DEB", "LEW"],
+                "GAR": ["BEC", "CYP"],
+                "GRE": ["CUS", "DEB"],
+                "HEQ": ["CAW", "SOQ"],
+                "ISG": ["CUS", "MUD"],
+                "KGV": ["LCA", "WOA"],
+                "LAP": ["ALS", "DER"],
+                "LCA": ["KGV", "PDK"],
+                "LEW": ["ELR"],
+                "LIM": ["SHA", "WES"],
+                "MUD": ["CRO", "ISG"],
+                "PDK": ["LCA", "WST"],
+                "PML": ["BOC", "STR"],
+                "POP": ["ALS", "BLA", "WES", "WIQ"],
+                "PRR": ["CUH", "ROA"],
+                "ROA": ["BEP", "PRR"],
+                "ROV": ["CAT", "CUH"],
+                "SHA": ["BAN", "LIM", "TOG"],
+                "SHS": ["ABR", "STR"],
+                "SOQ": ["CRO", "HEQ"],
+                "STI": ["STR"],
+                "STL": ["CAT", "WEH"],
+                "STR": ["PML", "SHS", "STI"],
+                "TOG": ["SHA"],
+                "WEH": ["ABR", "STL"],
+                "WES": ["CAW", "LIM", "POP", "WIQ"],
+                "WIQ": ["CAW", "POP", "WES"],
+                "WOA": ["KGV"],
+                "WST": ["CAT", "PDK"]
+            };
+            
+            // Helper function to extract station code
+            function getStationCode(locationCode) {
+                if (locationCode === "BANH") return "BANH";
+                if (locationCode === "STR4B") return "STR";
+                return locationCode.substring(0, 3);
+            }
+            
+            // Function to check if stations are adjacent
+            function areStationsAdjacent(station1, station2) {
+                const code1 = getStationCode(station1);
+                const code2 = getStationCode(station2);
+                
+                // Same station (different platforms)
+                if (code1 === code2) return true;
+                
+                // Check adjacency map
+                if (adjacencyMap[code1] && adjacencyMap[code1].includes(code2)) return true;
+                if (adjacencyMap[code2] && adjacencyMap[code2].includes(code1)) return true;
+                
+                return false;
+            }
+            
+            // Function to parse time
+            function parseTime(timeStr) {
+                const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+                return hours * 3600 + minutes * 60 + seconds;
+            }
+            
+            // First, create a map of run numbers to their line indices
+            const runLineIndices = {};
+            lines.forEach((line, index) => {
+                const parts = line.split(',');
+                if (parts.length >= 7) {
+                    const runNumber = parts[1].trim();
+                    if (!runLineIndices[runNumber]) {
+                        runLineIndices[runNumber] = [];
+                    }
+                    runLineIndices[runNumber].push(index);
+                }
+            });
+            
+            // Get a sorted list of all run numbers
+            const allRuns = Object.keys(runLineIndices);
+            
+            // For each run, find its last stop
+            for (const fromRun of allRuns) {
+                const fromRunIndices = runLineIndices[fromRun];
+                if (fromRunIndices.length === 0) continue;
+                
+                // Get the last line index for this run
+                const lastLineIndex = Math.max(...fromRunIndices);
+                const lastLine = lines[lastLineIndex];
+                const lastLineParts = lastLine.split(',');
+                
+                // Extract details from the last line
+                const lastLocationCode = lastLineParts[4].trim();
+                const lastDepartureTime = lastLineParts[6].trim();
+                const lastDepartureSeconds = parseTime(lastDepartureTime);
+                
+                // Skip if it's a junction
+                if (lastLocationCode.startsWith('J')) continue;
+                
+                // Check the next few lines to see if another run starts
+                const locationMapping = {
+                    'STR4B': 'Stratford',
+                    'BEC2': 'Beckton',
+                    'LEW6': 'Lewisham'
+                };
+                
+                for (let i = lastLineIndex + 1; i <= lastLineIndex + 3 && i < lines.length; i++) {
+                    const nextLine = lines[i];
+                    const nextLineParts = nextLine.split(',');
+                    
+                    if (nextLineParts.length < 7) continue;
+                    
+                    const nextRun = nextLineParts[1].trim();
+                    if (nextRun === fromRun) continue; // Skip same run
+                    
+                    // Only consider this if it's the first occurrence of the next run
+                    if (Math.min(...runLineIndices[nextRun]) !== i) continue;
+                    
+                    const nextLocationCode = nextLineParts[4].trim();
+                    const nextArrivalTime = nextLineParts[5].trim();
+                    const nextArrivalSeconds = parseTime(nextArrivalTime);
+                    
+                    // Skip if it's a junction
+                    if (nextLocationCode.startsWith('J')) continue;
+                    
+                    // Calculate time difference
+                    const timeDiffMinutes = (nextArrivalSeconds - lastDepartureSeconds) / 60;
+                    
+                    // Apply the three rules:
+                    // 1. Stations must be adjacent
+                    // 2. Time gap must be 0.5-5 minutes
+                    // 3. The runs should be examined in the order they appear in the data
+                    if (areStationsAdjacent(lastLocationCode, nextLocationCode) && 
+                        timeDiffMinutes >= 0.5 && 
+                        timeDiffMinutes <= 5) {
+                        
+                        // Get the location name
+                        let locationName = locationMapping[nextLocationCode] || 'Unknown';
+                        
+                        transitions[fromRun] = { 
+                            nextRun, 
+                            location: locationName 
+                        };
+                        
+                        // Just before returning, store the last location for UI purposes
+                        transitions[fromRun].fromLocation = lastLocationCode;                        
+                        
+                        break; // Found the next run, no need to check others
+                    }
+                }
+            }
+            
+            return transitions;
+        }
+
+        function detectTrips(stops) {
+            const trips = [];
+            let currentTrip = [];
+            let tripNumber = 1;
+
+            for (let i = 0; i < stops.length; i++) {
+                currentTrip.push(stops[i]);
+
+                if (i < stops.length - 2) {
+                    const loc1 = stops[i].location;
+                    const loc2 = stops[i + 1].location;
+                    const loc3 = stops[i + 2].location;
+
+                    if (loc1 === loc3 && loc1 !== loc2) {
+                        trips.push({
+                            tripNumber,
+                            from: currentTrip[0].location,
+                            departureTime: currentTrip[0].departureTime,
+                            to: loc2,
+                            arrivalTime: stops[i + 1].arrivalTime,
+                            stops: [...currentTrip, stops[i + 1]]
+                        });
+                        
+                        currentTrip = [stops[i + 1]];
+                        tripNumber++;
+                        i++;
+                    }
+                }
+            }
+
+            if (currentTrip.length > 0) {
+                trips.push({
+                    tripNumber,
+                    from: currentTrip[0].location,
+                    departureTime: currentTrip[0].departureTime,
+                    to: currentTrip[currentTrip.length - 1].location,
+                    arrivalTime: currentTrip[currentTrip.length - 1].arrivalTime,
+                    stops: [...currentTrip]
+                });
+            }
+
+            return trips;
+        }
+        
+        async function processCSVFromURL() {
+            const hash = window.location.hash.substring(1);
+            
+            // If no hash, redirect to first timetable and return early
+            if (!hash) {
+                const firstTimetable = Object.keys(timetablePaths)[0];
+                if (firstTimetable) {
+                    window.location.hash = `#timetable=${firstTimetable}`;
+                }
+                return;
+            }
+            
+            const urlParams = new URLSearchParams(hash);
+            
+            // Get all parameters in the hash
+            const params = Array.from(urlParams.keys());
+            
+            // Special handling for archived view
+            if (params.length === 1 && params[0] === 'archived') {
+                showArchivedTimetables();
+                return;
+            }
+            
+            const timetable = urlParams.get('timetable');
+            const from = urlParams.get('from');
+            const at = urlParams.get('at');
+            const to = urlParams.get('to');
+            
+            // Check if timetable exists in either active or archived paths
+            currentPath = timetablePaths[timetable] || archivedTimetablePaths[timetable]?.url;
+            if (!timetable || !currentPath) {
+                alert('No data matches the URL you entered.');
+                const firstTimetable = Object.keys(timetablePaths)[0];
+                if (firstTimetable) {
+                    window.location.hash = `#timetable=${firstTimetable}`;
+                }
+                return;
+            }
+
+            // Set the appropriate timetable in the dropdown selector
+            isLoadingFromURL = true;
+            if (timetablePaths[timetable]) {
+                document.getElementById('daySelector').value = timetable;
+            } else {
+                const select = document.getElementById('daySelector');
+                // Remove any previous archived options
+                Array.from(select.options).forEach(option => {
+                    if (!timetablePaths[option.value]) {
+                        select.removeChild(option);
+                    }
+                });
+                // Add the new archived option
+                const tempOption = document.createElement('option');
+                tempOption.value = timetable;
+                tempOption.textContent = archivedTimetablePaths[timetable].name;
+                select.appendChild(tempOption);
+                select.value = timetable;
+            }
+            isLoadingFromURL = false;
+
+            // Process CSV data
+            await processCSV();
+            
+            // If we have search parameters, populate the form and perform the search
+            if (from && at) {
+                // Set form fields
+                document.getElementById('locationInput').value = getStationNameFromCode(from);
+                document.getElementById('timeInput').value = formatTimeFromUrlFormat(at);
+                if (to) {
+                    document.getElementById('callingAtInput').value = getStationNameFromCode(to);
+                }
+                
+                // Perform search
+                performSearch();
+            }
+        }
+        
+        // Converts station code to full name
+		function getStationNameFromCode(code) {
+			// Special handling for Bank Headshunt
+			if (code === 'BANH') {
+				return 'Bank Headshunt';
+			}
+			
+			// Handle platform-specific formats
+			const baseCode = code.substring(0, 3);
+			let platformPart = '';
+			
+			if (code.length > 3) {
+				// Get the platform part
+				let platformNumber = code.substring(3);
+				
+				// Special case for STR4A_4B
+				if (code === 'STR4A_4B') {
+					platformNumber = '4A and 4B';
+				} else {
+					// Convert underscores to "and" for display
+					platformNumber = platformNumber.replace(/_/g, ' and ');
+					
+					// Convert special characters back
+					platformNumber = platformNumber.replace(/-/g, '/');
+				}
+				
+				platformPart = ` Platform ${platformNumber}`;
+			}
+			
+			return (locationMapping[baseCode] || code) + platformPart;
+		}
+        
+        // Format time from URL format (HHMM) to display format (HH:MM)
+        function formatTimeFromUrlFormat(timeStr) {
+            if (timeStr.length === 3) {
+                return `0${timeStr.substring(0, 1)}:${timeStr.substring(1)}`;
+            } else if (timeStr.length === 4) {
+                return `${timeStr.substring(0, 2)}:${timeStr.substring(2)}`;
+            }
+            return timeStr;
+        }
+
+        async function processCSVAndUpdateURL() {
+            if (isLoadingFromURL) return; // Don't process if loading from URL
+            
+            const day = document.getElementById('daySelector').value;
+            currentPath = timetablePaths[day];
+            window.location.hash = `#timetable=${day}`;
+            clearSearchResults();
+            await processCSV();
+        }
+
+        function clearSearchResults() {
+            document.getElementById('searchResults').innerHTML = '';
+            document.getElementById('locationInput').value = '';
+            document.getElementById('timeInput').value = '';
+            document.getElementById('callingAtInput').value = '';
+        }
+
+		async function processCSV() {
+			let csvText = '';
+			try {
+				const response = await fetch(currentPath);
+				csvText = await response.text();
+			} catch (error) {
+				console.error('Error loading CSV data:', error);
+				return;
+			}
+
+			// Add specific transform for STR4B to STR4A_4B before any other processing
+			csvText = csvText.replace(/,STR4B,/g, ',STR4A_4B,');
+
+			const lines = csvText.split('\n').filter(line => line.trim() !== '');
+			const runData = {};
+			const stationData = {
+				// Create a separate entry for Bank Headshunt that isn't tied to Bank
+				'BANH': {
+					name: 'Bank Headshunt',
+					platforms: [],
+					stops: [],
+					isHeadshunt: true  // Special flag for headshunt
+				}
+			};
+
+			const junctions = [
+				'JRMS', 'JRMX', 'JCAW', 'JWEM', 'JCRO', 'JC2M', 'JC3M',
+				'JC4M', 'JROM', 'JWEX', 'JCTM', 'JCTX', 'JWIQ', 'JNQX',
+				'JNQM', 'JWSX', 'JWSM', 'ISP2', 'ISP3'
+			];
+
+			lines.forEach((line, index) => {
+				const parts = line.split(',');
+				if (parts.length >= 7) {
+					const runNumber = parts[1].trim();
+					const locationCode = parts[4].trim();
+					const arrivalTime = parts[5].trim();
+					const departureTime = parts[6].trim();
+
+					if (!junctions.includes(locationCode)) {
+						if (!runData[runNumber]) {
+							runData[runNumber] = [];
+						}
+
+						let location = '';
+						let platform = '';
+
+						if (locationCode === 'BANH') {
+							location = 'Bank Headshunt';
+						} else {
+							const codePrefix = locationCode.slice(0, 3);
+							platform = locationCode.slice(3);
+
+							if (locationMapping[codePrefix]) {
+								location = locationMapping[codePrefix];
+							} else {
+								location = locationCode;
+								platform = '';
+							}
+						}
+
+						const stopData = {
+							location,
+							platform,
+							arrivalTime,
+							departureTime,
+							originalLocationCode: locationCode
+						};
+
+						runData[runNumber].push(stopData);
+
+						// Build station data for search/autocomplete
+						const fullLocationCode = locationCode;
+						
+						// Handle Bank Headshunt separately
+						if (fullLocationCode === 'BANH') {
+							stationData['BANH'].stops.push({
+								runNumber,
+								platform: '', // No platform for headshunt
+								arrivalTime,
+								departureTime,
+								fullLocationCode
+							});
+						} else {
+							// Normal station
+							const stationCode = fullLocationCode.slice(0, 3);
+							
+							if (!stationData[stationCode]) {
+								stationData[stationCode] = {
+									name: locationMapping[stationCode] || stationCode,
+									platforms: new Set(),
+									stops: []
+								};
+							}
+
+							if (platform) {
+								stationData[stationCode].platforms.add(platform);
+							}
+
+							// Add the stop to this station's stops
+							stationData[stationCode].stops.push({
+								runNumber,
+								platform,
+								arrivalTime,
+								departureTime,
+								fullLocationCode
+							});
+						}
+					}
+				}
+			});
+
+			// Convert platform Sets to Arrays and sort them
+			Object.values(stationData).forEach(station => {
+				if (!station.isHeadshunt) { // Skip for headshunt which has no platforms
+					station.platforms = Array.from(station.platforms)
+						.sort((a, b) => {
+							// Handle complex platform numbers like "3/4"
+							if (a.includes('/') || b.includes('/')) {
+								// If both have slashes, compare the first part
+								if (a.includes('/') && b.includes('/')) {
+									const aFirst = parseInt(a.split('/')[0]);
+									const bFirst = parseInt(b.split('/')[0]);
+									return aFirst - bFirst;
+								}
+								// If only one has a slash, put it after the plain numbers
+								return a.includes('/') ? 1 : -1;
+							}
+							// Simple numeric comparison for regular platform numbers
+							return parseInt(a) - parseInt(b);
+						});
+				}
+			});
+
+			currentRunData = runData;
+			window.stationData = stationData; // Store globally for search
+
+			// Build trips data
+			allTripsData = [];
+			for (const [runNumber, stops] of Object.entries(runData)) {
+				const trips = detectTrips(stops);
+				trips.forEach(trip => {
+					allTripsData.push({
+						runNumber,
+						...trip
+					});
+				});
+			}
+
+			// Set up autocomplete for the search fields
+			setupAutocomplete();
+		}
+
+        function setupAutocomplete() {
+            const locationInput = document.getElementById('locationInput');
+            const locationSuggestions = document.getElementById('locationSuggestions');
+            const callingAtInput = document.getElementById('callingAtInput');
+            const callingAtSuggestions = document.getElementById('callingAtSuggestions');
+
+            // Setup for location input
+            setupAutocompleteField(locationInput, locationSuggestions);
+            
+            // Setup for calling at input
+            setupAutocompleteField(callingAtInput, callingAtSuggestions);
+            
+            // Setup time input handling
+            const timeInput = document.getElementById('timeInput');
+            
+            // Only allow numbers and colon
+            timeInput.addEventListener('keypress', function(e) {
+                const key = String.fromCharCode(e.which);
+                // Allow only numbers and colon
+                if (!/[\d:]/.test(key)) {
+                    e.preventDefault();
+                }
+
+                // Auto-insert colon after 2 digits if not already there
+                if (this.value.length === 2 && key !== ':' && !this.value.includes(':')) {
+                    this.value += ':';
+                }
+
+                // Don't allow more than 5 characters (HH:MM)
+                if (this.value.length >= 5) {
+                    e.preventDefault();
+                }
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    performSearch();
+                }                
+            });
+            
+            // Handle paste to ensure valid format
+            timeInput.addEventListener('paste', function(e) {
+                e.preventDefault();
+                
+                // Get pasted data
+                let pastedText = '';
+                if (window.clipboardData && window.clipboardData.getData) {
+                    pastedText = window.clipboardData.getData('Text');
+                } else if (e.clipboardData && e.clipboardData.getData) {
+                    pastedText = e.clipboardData.getData('text/plain');
+                }
+                
+                // Only keep numbers from pasted text
+                const numbers = pastedText.replace(/[^\d]/g, '');
+                
+                // Format appropriately
+                if (numbers.length <= 2) {
+                    // If 1-2 digits, treat as hour
+                    this.value = numbers;
+                } else if (numbers.length <= 4) {
+                    // If 3-4 digits, format as HH:MM
+                    if (numbers.length === 3) {
+                        this.value = `0${numbers[0]}:${numbers.substring(1)}`;
+                    } else {
+                        this.value = `${numbers.substring(0, 2)}:${numbers.substring(2)}`;
+                    }
+                }
+            });
+            
+            // Format on blur
+            timeInput.addEventListener('blur', function() {
+                const value = this.value.trim();
+                
+                // Handle empty value
+                if (!value) return;
+                
+                // If no colon, try to format
+                if (!value.includes(':')) {
+                    if (value.length <= 2) {
+                        // Treat as hour
+                        this.value = `${value.padStart(2, '0')}:00`;
+                    } else if (value.length === 3) {
+                        // Format 3 digits as 0H:MM
+                        this.value = `0${value[0]}:${value.substring(1)}`;
+                    } else if (value.length === 4) {
+                        // Format 4 digits as HH:MM
+                        this.value = `${value.substring(0, 2)}:${value.substring(2)}`;
+                    }
+                } else {
+                    // Has colon, but might need padding
+                    const [hours, minutes] = value.split(':');
+                    if (hours && minutes) {
+                        this.value = `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+                    }
+                }
+                
+                // Validate the time format
+                const timeRegex = /^([0-9]{1,2}):([0-9]{2})$/;
+                if (!timeRegex.test(this.value)) {
+					errorDiv.textContent = 'Please enter a valid time';
+                    this.value = '';
+                    return;
+                }
+                
+                // Check hour and minute ranges
+                const [hours, minutes] = this.value.split(':').map(Number);
+                if (hours < 0 || hours > 28 || minutes < 0 || minutes > 59) {
+                    this.value = '';
+                }
+            });
+        }
+
+        function setupAutocompleteField(input, suggestionsContainer) {
+            // On input, show suggestions
+            input.addEventListener('input', () => {
+                const query = input.value.toLowerCase();
+                showSuggestions(query, suggestionsContainer, input);
+            });
+
+            // Hide suggestions when clicking outside
+            document.addEventListener('click', (e) => {
+                if (e.target !== input && !suggestionsContainer.contains(e.target)) {
+                    suggestionsContainer.style.display = 'none';
+                }
+            });
+
+            // Show suggestions on focus
+            input.addEventListener('focus', () => {
+                if (input.value.length > 0) {
+                    showSuggestions(input.value.toLowerCase(), suggestionsContainer, input);
+                }
+            });
+            
+            // Handle blur event to select top suggestion if no selection made
+            input.addEventListener('blur', () => {
+                setTimeout(() => {
+                    // Check if suggestions are visible and we clicked outside
+                    if (suggestionsContainer.style.display === 'none' && input.value.trim() !== '') {
+                        // Find all matching suggestions
+                        const suggestions = getMatchingSuggestions(input.value.toLowerCase());
+                        
+                        // If there are suggestions, select the first one
+                        if (suggestions.length > 0) {
+                            input.value = suggestions[0].displayName;
+                        }
+                    }
+                }, 200); // Small delay to allow for clicks on suggestions
+            });
+        }
+
+		function getMatchingSuggestions(query) {
+			const suggestions = [];
+			const MAX_SUGGESTIONS = 10;
+			
+			// Early return if no query or data
+			if (!window.stationData) return suggestions;
+			
+			// Handle special case for exact "Bank" match
+			if (query === 'bank') {
+				// Check if Bank is expanded
+				if (expandedStations.has('BAN')) {
+					// Return Bank with its platforms
+					const bankStation = {
+						code: 'BAN',
+						displayName: 'Bank',
+						isStation: true,
+						isExpandable: true
+					};
+					suggestions.push(bankStation);
+					
+					// Add Bank's platforms
+					if (window.stationData['BAN']) {
+						// Sort platforms numerically
+						const platforms = window.stationData['BAN'].platforms
+							.sort((a, b) => parseInt(a) - parseInt(b))
+							.map(platform => {
+								let displayPlatform = platform;
+								if (platform.includes('_')) {
+									displayPlatform = platform.replace(/_/g, ' and ');
+								}
+								
+								return {
+									code: `BAN${platform}`,
+									displayName: `Bank Platform ${displayPlatform}`,
+									isStation: false,
+									platformNumber: platform,
+									isExpandable: false
+								};
+							});
+							
+						platforms.forEach(p => suggestions.push(p));
+					}
+					
+					// Also add Bank Headshunt
+					suggestions.push({
+						code: 'BANH',
+						displayName: 'Bank Headshunt',
+						isStation: true,
+						isExpandable: false,
+						isHeadshunt: true
+					});
+					
+					return suggestions;
+				} else {
+					// Standard behavior if not expanded
+					return [
+						{
+							code: 'BAN',
+							displayName: 'Bank',
+							isStation: true,
+							isExpandable: true
+						},
+						{
+							code: 'BANH',
+							displayName: 'Bank Headshunt',
+							isStation: true,
+							isExpandable: false,
+							isHeadshunt: true
+						}
+					];
+				}
+			}
+			
+			// Handle special case for exact "Beckton" match
+			if (query === 'beckton') {
+				// Check if Beckton is expanded
+				if (expandedStations.has('BEC')) {
+					// Return Beckton with its platforms
+					const becktonStation = {
+						code: 'BEC',
+						displayName: 'Beckton',
+						isStation: true,
+						isExpandable: true
+					};
+					suggestions.push(becktonStation);
+					
+					// Add Beckton's platforms
+					if (window.stationData['BEC']) {
+						// Sort platforms numerically
+						const platforms = window.stationData['BEC'].platforms
+							.sort((a, b) => parseInt(a) - parseInt(b))
+							.map(platform => {
+								let displayPlatform = platform;
+								if (platform.includes('_')) {
+									displayPlatform = platform.replace(/_/g, ' and ');
+								}
+								
+								return {
+									code: `BEC${platform}`,
+									displayName: `Beckton Platform ${displayPlatform}`,
+									isStation: false,
+									platformNumber: platform,
+									isExpandable: false
+								};
+							});
+							
+						platforms.forEach(p => suggestions.push(p));
+					}
+					
+					// Also add Beckton Park
+					suggestions.push({
+						code: 'BEP',
+						displayName: 'Beckton Park',
+						isStation: true,
+						isExpandable: true
+					});
+					
+					return suggestions;
+				} else {
+					// Standard behavior if not expanded
+					return [
+						{
+							code: 'BEC',
+							displayName: 'Beckton',
+							isStation: true,
+							isExpandable: true
+						},
+						{
+							code: 'BEP',
+							displayName: 'Beckton Park',
+							isStation: true,
+							isExpandable: true
+						}
+					];
+				}
+			}
+			
+			// Handle special case for exact "Stratford" match
+			if (query === 'stratford') {
+				// Check if Stratford is expanded
+				if (expandedStations.has('STR')) {
+					// Return Stratford with its platforms
+					const stratfordStation = {
+						code: 'STR',
+						displayName: 'Stratford',
+						isStation: true,
+						isExpandable: true
+					};
+					suggestions.push(stratfordStation);
+					
+					// Add Stratford's platforms
+					if (window.stationData['STR']) {
+						// Sort platforms numerically
+						const platforms = window.stationData['STR'].platforms
+							.sort((a, b) => parseInt(a) - parseInt(b))
+							.map(platform => {
+								let displayPlatform = platform;
+								if (platform.includes('_')) {
+									displayPlatform = platform.replace(/_/g, ' and ');
+								}
+								
+								return {
+									code: `STR${platform}`,
+									displayName: `Stratford Platform ${displayPlatform}`,
+									isStation: false,
+									platformNumber: platform,
+									isExpandable: false
+								};
+							});
+							
+						platforms.forEach(p => suggestions.push(p));
+					}
+					
+					// Also add other Stratford stations
+					suggestions.push({
+						code: 'SHS',
+						displayName: 'Stratford High Street',
+						isStation: true,
+						isExpandable: true
+					});
+					
+					suggestions.push({
+						code: 'STI',
+						displayName: 'Stratford International',
+						isStation: true,
+						isExpandable: true
+					});
+					
+					return suggestions;
+				} else {
+					// Standard behavior if not expanded
+					return [
+						{
+							code: 'STR',
+							displayName: 'Stratford',
+							isStation: true,
+							isExpandable: true
+						},
+						{
+							code: 'SHS',
+							displayName: 'Stratford High Street',
+							isStation: true,
+							isExpandable: true
+						},
+						{
+							code: 'STI',
+							displayName: 'Stratford International',
+							isStation: true,
+							isExpandable: true
+						}
+					];
+				}
+			}
+			
+			// Check for direct code with platform (e.g., POP1, WIQ4, CAW1/2)
+			const directCodeMatch = /^([a-zA-Z]{3})([0-9/]+)$/i.exec(query);
+			if (directCodeMatch) {
+				const code = directCodeMatch[1].toUpperCase();
+				const platform = directCodeMatch[2];
+				
+				// Check if this code exists and is valid
+				if (window.stationData[code]) {
+					const station = window.stationData[code];
+					
+					// For direct code+platform, only show the platform match
+					if (station.platforms.includes(platform)) {
+						suggestions.push({
+							code: `${code}${platform}`,
+							displayName: `${station.name} Platform ${platform}`,
+							isStation: false,
+							platformNumber: platform,
+							isExpandable: false
+						});
+					} else {
+						// If platform doesn't exist, show the station
+						suggestions.push({
+							code,
+							displayName: station.name,
+							isStation: true,
+							isExpandable: station.platforms.length > 1
+						});
+					}
+					
+					return suggestions;
+				}
+			}
+			
+			// If query is empty, just return sorted list of stations
+			if (!query) {
+				const regularStations = Object.entries(window.stationData)
+					.filter(([code, station]) => code !== 'BANH') // Exclude Bank Headshunt
+					.map(([code, station]) => ({
+						code,
+						displayName: station.name,
+						isStation: true,
+						isExpandable: station.platforms.length > 1
+					}))
+					.sort((a, b) => a.displayName.localeCompare(b.displayName));
+				
+				// Add Bank Headshunt separately to ensure it comes after Bank (it's handled separately)
+				const headshuntStation = {
+					code: 'BANH',
+					displayName: 'Bank Headshunt',
+					isStation: true,
+					isExpandable: false,
+					isHeadshunt: true
+				};
+				
+				// Find where Bank is and insert Bank Headshunt right after
+				const bankIndex = regularStations.findIndex(s => s.displayName === 'Bank');
+				if (bankIndex !== -1) {
+					regularStations.splice(bankIndex + 1, 0, headshuntStation);
+				} else {
+					// If Bank isn't found (unlikely), add Headshunt at the beginning
+					regularStations.unshift(headshuntStation);
+				}
+				
+				return regularStations.slice(0, MAX_SUGGESTIONS);
+			}
+			
+			// Check for exact station match to determine if we show platforms
+			let singleStationMatch = null;
+			
+			// Check for exact station match first
+			for (const [code, station] of Object.entries(window.stationData)) {
+				const stationName = station.name.toLowerCase();
+				
+				if (stationName === query || code.toLowerCase() === query) {
+					singleStationMatch = { code, station };
+					break;
+				}
+			}
+			
+			// If we have a single station match, add its platforms
+			if (singleStationMatch) {
+				suggestions.push({
+					code: singleStationMatch.code,
+					displayName: singleStationMatch.station.name,
+					isStation: true,
+					isExpandable: singleStationMatch.station.platforms.length > 1,
+					isHeadshunt: singleStationMatch.code === 'BANH'
+				});
+				
+				// Only add platforms if it's not a headshunt and has multiple platforms
+				if (singleStationMatch.code !== 'BANH' && singleStationMatch.station.platforms.length > 1) {
+					// Sort platforms numerically
+					const platforms = singleStationMatch.station.platforms
+						.sort((a, b) => parseInt(a) - parseInt(b))
+						.map(platform => {
+							let displayPlatform = platform;
+							if (platform.includes('_')) {
+								displayPlatform = platform.replace(/_/g, ' and ');
+							}
+							
+							return {
+								code: `${singleStationMatch.code}${platform}`,
+								displayName: `${singleStationMatch.station.name} Platform ${displayPlatform}`,
+								isStation: false,
+								platformNumber: platform,
+								isExpandable: false
+							};
+						});
+						
+					platforms.forEach(p => suggestions.push(p));
+				}
+				
+				return suggestions;
+			}
+			
+			// Check for platform-specific query
+			const platformMatch = query.match(/^(.+) platform ([0-9/]+)$/i);
+			if (platformMatch) {
+				const stationQuery = platformMatch[1].toLowerCase();
+				const platformNumber = platformMatch[2];
+				
+				for (const [code, station] of Object.entries(window.stationData)) {
+					const stationName = station.name.toLowerCase();
+					
+					if (stationName === stationQuery || stationName.startsWith(stationQuery) || 
+						code.toLowerCase() === stationQuery || code.toLowerCase().startsWith(stationQuery)) {
+						
+						// Skip Bank Headshunt which has no platforms
+						if (code === 'BANH') continue;
+						
+						// Find matching platform
+						const matchingPlatform = station.platforms.find(p => p === platformNumber);
+						if (matchingPlatform) {
+							suggestions.push({
+								code: `${code}${matchingPlatform}`,
+								displayName: `${station.name} Platform ${matchingPlatform}`,
+								isStation: false,
+								platformNumber: matchingPlatform,
+								isExpandable: false
+							});
+							break; // We found an exact match, no need to continue
+						}
+					}
+				}
+				
+				if (suggestions.length > 0) {
+					return suggestions;
+				}
+			}
+			
+			// Find stations that start with the query
+			const matchingStations = [];
+			
+			// Bank should always come before Bank Headshunt
+			if ('bank'.startsWith(query)) {
+				if (window.stationData['BAN']) {
+					matchingStations.push({
+						code: 'BAN',
+						displayName: window.stationData['BAN'].name,
+						isStation: true,
+						isExpandable: window.stationData['BAN'].platforms.length > 1
+					});
+				}
+			}
+			
+			// Now handle Bank Headshunt if it matches
+			if ('bank headshunt'.startsWith(query) || 'banh'.startsWith(query)) {
+				matchingStations.push({
+					code: 'BANH',
+					displayName: 'Bank Headshunt',
+					isStation: true,
+					isExpandable: false,
+					isHeadshunt: true
+				});
+			}
+			
+			// Add rest of the stations that start with the query
+			for (const [code, station] of Object.entries(window.stationData)) {
+				if (code === 'BAN' || code === 'BANH') continue; // Skip Bank and Bank Headshunt, already handled
+				
+				const stationName = station.name.toLowerCase();
+				
+				// Only match at start of station name or code
+				if (stationName.startsWith(query) || code.toLowerCase().startsWith(query)) {
+					matchingStations.push({
+						code,
+						displayName: station.name,
+						isStation: true,
+						isExpandable: station.platforms.length > 1,
+						isHeadshunt: code === 'BANH'
+					});
+				}
+			}
+			
+			// Sort stations alphabetically
+			matchingStations.sort((a, b) => a.displayName.localeCompare(b.displayName));
+			
+			// Add all matching stations first
+			matchingStations.forEach(station => {
+				suggestions.push(station);
+			});
+			
+			// For stations in expandedStations, add their platforms
+			matchingStations.forEach(station => {
+				if (expandedStations.has(station.code) && !station.isHeadshunt) {
+					const stationData = window.stationData[station.code];
+					
+					if (stationData && stationData.platforms.length > 1) {
+						// Sort platforms numerically
+						const platforms = stationData.platforms
+							.sort((a, b) => parseInt(a) - parseInt(b))
+							.map(platform => {
+								let displayPlatform = platform;
+								if (platform.includes('_')) {
+									displayPlatform = platform.replace(/_/g, ' and ');
+								}
+								
+								return {
+									code: `${station.code}${platform}`,
+									displayName: `${station.displayName} Platform ${displayPlatform}`,
+									isStation: false,
+									platformNumber: platform,
+									isExpandable: false
+								};
+							});
+							
+						platforms.forEach(p => suggestions.push(p));
+					}
+				}
+			});
+			
+			// NEW LOGIC: If there's exactly one station match from a partial search,
+			// include its platforms like we would for an exact match
+			if (matchingStations.length === 1 && !matchingStations[0].isHeadshunt) {
+				const singleStation = matchingStations[0];
+				const stationData = window.stationData[singleStation.code];
+				
+				if (stationData && stationData.platforms.length > 1) {
+					// Sort platforms numerically
+					const platforms = stationData.platforms
+						.sort((a, b) => parseInt(a) - parseInt(b))
+						.map(platform => {
+							let displayPlatform = platform;
+							if (platform.includes('_')) {
+								displayPlatform = platform.replace(/_/g, ' and ');
+							}
+							
+							return {
+								code: `${singleStation.code}${platform}`,
+								displayName: `${singleStation.displayName} Platform ${displayPlatform}`,
+								isStation: false,
+								platformNumber: platform,
+								isExpandable: false
+							};
+						});
+						
+					platforms.forEach(p => suggestions.push(p));
+				}
+			}
+			
+			// Return limited number of suggestions
+			return suggestions.slice(0, MAX_SUGGESTIONS);
+		}
+
+		let expandedStations = new Set();
+
+		function showSuggestions(query, suggestionsContainer, inputField) {
+			// Clear previous suggestions
+			suggestionsContainer.innerHTML = '';
+			
+			// Get matching suggestions
+			const suggestions = getMatchingSuggestions(query);
+			
+			// Filter to get only station suggestions
+			const stationSuggestions = suggestions.filter(s => s.isStation);
+			
+			// Reset expandedStations if there's only one station in the list
+			// This ensures the filter button resets when we filter down to one station
+			if (stationSuggestions.length === 1) {
+				const stationCode = stationSuggestions[0].code;
+				expandedStations.delete(stationCode);
+			}
+			
+			// Track which stations should show platforms
+			const stationsToShowPlatforms = new Set();
+			
+			// Add stations that should show platforms:
+			// 1. Single station result - always show platforms
+			if (stationSuggestions.length === 1) {
+				stationsToShowPlatforms.add(stationSuggestions[0].code);
+			}
+			
+			// 2. Stations that have been expanded via SVG click - ALWAYS include these
+			expandedStations.forEach(code => stationsToShowPlatforms.add(code));
+			
+			// If we have suggestions, process and show them
+			if (suggestions.length > 0) {
+				// Organize suggestions with platforms grouped under their stations
+				const organizedSuggestions = [];
+				
+				// Get a map of station code to its platforms
+				const stationPlatforms = {};
+				suggestions.filter(s => !s.isStation).forEach(platform => {
+					const stationCode = platform.code.substring(0, 3);
+					if (!stationPlatforms[stationCode]) {
+						stationPlatforms[stationCode] = [];
+					}
+					stationPlatforms[stationCode].push(platform);
+				});
+				
+				// For each station, add it and then its platforms if they should be shown
+				stationSuggestions.forEach(station => {
+					// Add the station
+					organizedSuggestions.push(station);
+					
+					// Add its platforms if needed
+					if (stationsToShowPlatforms.has(station.code) && stationPlatforms[station.code]) {
+						// Sort platforms numerically
+						const platforms = stationPlatforms[station.code].sort((a, b) => {
+							const numA = parseInt(a.platformNumber.replace(/\D/g, ''));
+							const numB = parseInt(b.platformNumber.replace(/\D/g, ''));
+							return numA - numB;
+						});
+						
+						platforms.forEach(platform => {
+							organizedSuggestions.push(platform);
+						});
+					}
+				});
+				
+				// Render the organized suggestions
+				organizedSuggestions.forEach(suggestion => {
+					const div = document.createElement('div');
+					div.className = 'suggestion-item';
+					
+					if (suggestion.isStation) {
+						// Station suggestion
+						const stationSpan = document.createElement('span');
+						stationSpan.className = 'station-name';
+						stationSpan.textContent = suggestion.displayName;
+						div.appendChild(stationSpan);
+						
+						// Only add platform selector if station has multiple platforms and there are multiple stations
+						const hasMultiplePlatforms = window.stationData[suggestion.code]?.platforms.length > 1;
+						const shouldShowSelector = hasMultiplePlatforms && stationSuggestions.length > 1;
+						
+						if (suggestion.isExpandable && shouldShowSelector) {
+							// Create platform selector
+							const platformSelector = document.createElement('div');
+							platformSelector.className = 'platform-selector';
+							
+							// Check if expanded
+							const isExpanded = expandedStations.has(suggestion.code);
+							
+							platformSelector.innerHTML = `
+								<svg width="150" height="40" viewBox="0 0 300 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+									<!-- Solid Full-Height Bar -->
+									<rect x="5" y="2" width="5" height="40" fill="white"/>
+									<!-- Filter Icon (Funnel) -->
+									<path d="M67 5h30l-12 15v10l-6 4v-14L67 5z" stroke="white" stroke-width="3" fill="${isExpanded ? 'white' : 'none'}"/>
+									<!-- Text: PLATFORM (Aligned with Filter) -->
+									<text x="110" y="30" font-size="30" font-weight="600" font-family="Arial, sans-serif" fill="white">PLATFORM</text>
+								</svg>
+							`;
+							
+							// Add click handler for toggling
+							platformSelector.onclick = (e) => {
+								e.stopPropagation();
+								
+								// Set the input field to the full station name
+								inputField.value = suggestion.displayName;
+								
+								// Toggle expanded state
+								if (expandedStations.has(suggestion.code)) {
+									expandedStations.delete(suggestion.code);
+								} else {
+									expandedStations.add(suggestion.code);
+								}
+								
+								// Force refresh suggestions with current input value
+								showSuggestions(inputField.value.toLowerCase(), suggestionsContainer, inputField);
+							};
+							
+							div.appendChild(platformSelector);
+						}
+					} else {
+						// Platform suggestion
+						const stationSpan = document.createElement('span');
+						stationSpan.className = 'station-name';
+						stationSpan.textContent = suggestion.displayName.split(' Platform ')[0];
+						
+						const platformSpan = document.createElement('span');
+						platformSpan.className = 'platform-text';
+						
+						// Handle platform text display
+						let platformText = suggestion.displayName.split(' Platform ')[1];
+						platformSpan.textContent = ` Platform ${platformText}`;
+						
+						div.appendChild(stationSpan);
+						div.appendChild(platformSpan);
+					}
+					
+					// Add click handler
+					div.onclick = () => {
+						inputField.value = suggestion.displayName;
+						suggestionsContainer.style.display = 'none';
+					};
+					
+					suggestionsContainer.appendChild(div);
+				});
+				
+				suggestionsContainer.style.display = 'block';
+			} else {
+				suggestionsContainer.style.display = 'none';
+			}
+		}
+
+		function performSearch() {
+			// Get search parameters
+			const locationInput = document.getElementById('locationInput').value.trim();
+			let timeInput = document.getElementById('timeInput').value.trim();
+			const callingAtInput = document.getElementById('callingAtInput').value.trim();
+			const searchResults = document.getElementById('searchResults');
+			
+			// Clear any previous error messages
+			const previousError = document.querySelector('.search-error:not(.time-error)');
+			if (previousError) {
+				previousError.remove();
+			}
+			
+			// If no location is entered
+			if (!locationInput) {
+				const errorDiv = document.createElement('div');
+				errorDiv.className = 'search-error';
+				errorDiv.style.color = '#e53935';
+				errorDiv.style.textAlign = 'center';
+				errorDiv.style.marginBottom = '10px';
+				errorDiv.textContent = 'Please enter a valid location';
+				searchResults.insertBefore(errorDiv, searchResults.firstChild);
+				return;
+			}
+			
+			// Parse location - get code from input
+			const locationCode = getLocationCodeFromInput(locationInput);
+			if (!locationCode) {
+				const errorDiv = document.createElement('div');
+				errorDiv.className = 'search-error';
+				errorDiv.style.color = '#e53935';
+				errorDiv.style.textAlign = 'center';
+				errorDiv.style.marginBottom = '10px';
+				errorDiv.textContent = 'Please enter a valid location';
+				searchResults.insertBefore(errorDiv, searchResults.firstChild);
+				return;
+			}
+			
+			// Determine time handling
+			let timeSeconds;
+			if (!timeInput) {
+				// No input, use current time
+				const now = new Date();
+				timeInput = now.toLocaleTimeString('en-GB', { 
+					hour: '2-digit', 
+					minute: '2-digit', 
+					hour12: false 
+				});
+				timeSeconds = parseTimeInput(timeInput);
+			} else {
+				// Input exists, validate it
+				timeSeconds = parseTimeInput(timeInput);
+				if (timeSeconds === null) {
+					// Error already displayed in parseTimeInput, just return
+					return;
+				}
+			}
+			
+			// Parse calling at location (if provided)
+			let callingAtCode = null;
+			if (callingAtInput) {
+				callingAtCode = getLocationCodeFromInput(callingAtInput);
+				if (!callingAtCode) {
+					const errorDiv = document.createElement('div');
+					errorDiv.className = 'search-error';
+					errorDiv.style.color = '#e53935';
+					errorDiv.style.textAlign = 'center';
+					errorDiv.style.marginBottom = '10px';
+					errorDiv.textContent = 'Please enter a valid calling at location';
+					searchResults.insertBefore(errorDiv, searchResults.firstChild);
+					return;
+				}
+			}
+			
+			// Update URL with search parameters
+			updateSearchURL(locationCode, timeInput, callingAtCode);
+			
+			// Perform the search
+			const results = searchTrains(locationCode, timeSeconds, callingAtCode);
+			
+			// Display results
+			displaySearchResults(results, locationInput, locationCode, callingAtInput, timeInput);
+		}
+
+        function getLocationCodeFromInput(input) {
+			// Handle special platform display names
+			const platformAndMatch = input.match(/^(.+) Platform ([0-9a-z]+(?:\s+and\s+[0-9a-z]+)?)$/i);
+			if (platformAndMatch) {
+				const stationName = platformAndMatch[1].trim();
+				const displayPlatform = platformAndMatch[2].trim();
+				
+				// Convert "5 and 6" back to code format like "5_6"
+				const codePlatform = displayPlatform.replace(/\s+and\s+/g, '_');
+				
+				// Find the station code
+				for (const [code, station] of Object.entries(window.stationData)) {
+					if (station.name.toLowerCase() === stationName.toLowerCase()) {
+						// Check if this is a special platform case
+						const combinedCode = `${code}${codePlatform.replace(/\s+/g, '')}`;
+						
+						// Check against special platform replacements
+						for (const [originalCode, replacedCode] of Object.entries(specialPlatformReplacements)) {
+							if (replacedCode === combinedCode || originalCode === combinedCode) {
+								return originalCode;
+							}
+						}
+						
+						return combinedCode;
+					}
+				}
+			}				
+            // Check for Bank Headshunt special case
+            if (input.toLowerCase() === 'bank headshunt') {
+                return 'BANH';
+            }
+            
+            // Check for direct code with platform match (e.g., POP1, WIQ4)
+            const directCodeMatch = /^([a-zA-Z]{3})([0-9/]+)$/i.exec(input);
+            if (directCodeMatch) {
+                const code = directCodeMatch[1].toUpperCase();
+                const platform = directCodeMatch[2];
+                
+                // Verify the code exists
+                if (window.stationData[code]) {
+                    return `${code}${platform}`;
+                }
+            }
+            
+            // Check for platform-specific format (e.g., "Poplar Platform 1")
+            const platformMatch = input.match(/^(.+) Platform (\d+|\d+\/\d+)$/i);
+            if (platformMatch) {
+                const stationName = platformMatch[1].trim();
+                const platformNumber = platformMatch[2].trim();
+                
+                // Find station code
+                for (const [code, station] of Object.entries(window.stationData)) {
+                    if (station.name.toLowerCase() === stationName.toLowerCase()) {
+                        return `${code}${platformNumber}`;
+                    }
+                }
+            }
+            
+            // Check for direct station match
+            for (const [code, station] of Object.entries(window.stationData)) {
+                if (station.name.toLowerCase() === input.toLowerCase()) {
+                    return code;
+                }
+            }
+            
+            // Check if input is a direct code (e.g., "POP" or "BANH")
+            const codeUppercase = input.toUpperCase();
+            if (window.stationData[codeUppercase]) {
+                return codeUppercase;
+            }
+            
+            return null;
+        }
+        
+		function parseTimeInput(timeInput) {
+			const searchResults = document.getElementById('searchResults');
+			
+			// Clear any previous time-specific error messages
+			const previousTimeError = document.querySelector('.time-error');
+			if (previousTimeError) {
+				previousTimeError.remove();
+			}
+
+			// Handle HHMM format (without colon)
+			if (/^\d{3,4}$/.test(timeInput)) {
+				if (timeInput.length === 3) {
+					timeInput = `0${timeInput.substring(0, 1)}:${timeInput.substring(1)}`;
+				} else {
+					timeInput = `${timeInput.substring(0, 2)}:${timeInput.substring(2)}`;
+				}
+			}
+			
+			// Parse time in HH:MM format
+			const timeMatch = timeInput.match(/^(\d{1,2}):(\d{2})$/);
+			if (!timeMatch) {
+				const errorDiv = document.createElement('div');
+				errorDiv.className = 'search-error time-error';
+				errorDiv.style.color = '#e53935';
+				errorDiv.style.textAlign = 'center';
+				errorDiv.style.marginBottom = '10px';
+				errorDiv.textContent = 'Please enter a valid time';
+				searchResults.insertBefore(errorDiv, searchResults.firstChild);
+				return null;
+			}
+			
+			let hours = parseInt(timeMatch[1], 10);
+			const minutes = parseInt(timeMatch[2], 10);
+			
+			// Validate hours and minutes
+			if (hours < 0 || hours > 28 || minutes < 0 || minutes > 59) {
+				const errorDiv = document.createElement('div');
+				errorDiv.className = 'search-error time-error';
+				errorDiv.style.color = '#e53935';
+				errorDiv.style.textAlign = 'center';
+				errorDiv.style.marginBottom = '10px';
+				errorDiv.textContent = 'Please enter a valid time';
+				searchResults.insertBefore(errorDiv, searchResults.firstChild);
+				return null;
+			}
+			
+			// Handle hours past midnight (0 => 24, 1 => 25, 2 => 26)
+			if (hours >= 0 && hours <= 2) {
+				hours += 24;
+			}
+			
+			// Convert to seconds for comparison
+			return (hours * 3600) + (minutes * 60);
+		}
+        
+        function updateSearchURL(locationCode, timeInput, callingAtCode) {
+            const timetable = document.getElementById('daySelector').value;
+            
+            // Format time for URL (remove colon)
+            let timeUrlFormat;
+            if (timeInput.includes(':')) {
+                timeUrlFormat = timeInput.replace(':', '');
+            } else {
+                timeUrlFormat = timeInput;
+            }
+            
+            // Handle special characters in location codes
+            const fromUrlFormat = locationCode.replace(/\//g, '-');
+            const toUrlFormat = callingAtCode ? callingAtCode.replace(/\//g, '-') : null;
+            
+            let hash = `timetable=${timetable}&from=${fromUrlFormat}&at=${timeUrlFormat}`;
+            if (toUrlFormat) hash += `&to=${toUrlFormat}`;
+            
+            window.history.replaceState(null, '', `${window.location.pathname}#${hash}`);
+        }
+
+		function searchTrains(locationCode, timeSeconds, callingAtCode) {
+			const results = [];
+			const isStation = locationCode.length === 3 || locationCode === 'BANH';
+			const stationCode = isStation ? locationCode : locationCode.substring(0, 3);
+			const platformNumber = isStation ? null : locationCode.substring(3);
+			
+			// Time window: -5 to +20 minutes
+			const windowStart = timeSeconds - (5 * 60);
+			const windowEnd = timeSeconds + (20 * 60);
+			
+			// Check if this is a "departures only" station
+			const isDeparturesOnlyStation = departuresOnlyStations.includes(stationCode);
+			
+			// Process each trip
+			allTripsData.forEach(trip => {
+				// Check each stop in this trip
+				for (let i = 0; i < trip.stops.length; i++) {
+					const stop = trip.stops[i];
+					
+					// Skip if not matching our location criteria
+					if (isStation) {
+						// For whole station search, check if this stop is at the station
+						if (stationCode === 'BANH') {
+							// For Bank Headshunt, check exact match
+							if (stop.location !== 'Bank Headshunt') continue;
+							
+							// Skip arrivals for departures-only stations, only show departures
+							// This means we skip the stop if it's the last stop in the trip
+							if (i === trip.stops.length - 1) continue;
+						} else {
+							// Normal station
+							const stopLocationCode = stop.originalLocationCode || '';
+							const stopStationCode = stopLocationCode.substring(0, 3);
+							
+							// Add explicit check to exclude BANH when searching for BAN
+							if (stationCode === 'BAN' && stopLocationCode === 'BANH') continue;
+							
+							// Check if this stop is at the requested station
+							if (stopStationCode !== stationCode) continue;
+							
+							// For departures-only stations, skip if it's the last stop
+							if (isDeparturesOnlyStation && i === trip.stops.length - 1) continue;
+						}
+					} else {
+						// For platform search, check if this stop is at the specific platform
+						const stopLocationCode = stop.originalLocationCode || '';
+						if (stopLocationCode !== locationCode) continue;
+						
+						// For departures-only stations, skip if it's the last stop
+						if (isDeparturesOnlyStation && i === trip.stops.length - 1) continue;
+					}
+					
+					// Parse times for this stop
+					const arrivalTimeSeconds = parseTimeTodaySeconds(stop.arrivalTime);
+					const departureTimeSeconds = parseTimeTodaySeconds(stop.departureTime);
+					
+					// Check if the stop is within our time window
+					if (
+						(arrivalTimeSeconds >= windowStart && arrivalTimeSeconds <= windowEnd) ||
+						(departureTimeSeconds >= windowStart && departureTimeSeconds <= windowEnd)
+					) {
+						// For calling at filter
+						let callsAtFilter = true;
+						if (callingAtCode) {
+							// Check if any subsequent stops in this trip call at the specified location
+							const remainingStopsInTrip = trip.stops.slice(i + 1);
+							callsAtFilter = remainingStopsInTrip.some(tripStop => {
+								const tripStopLocationCode = tripStop.originalLocationCode || '';
+								
+								if (callingAtCode === 'BANH') {
+									return tripStopLocationCode === 'BANH';
+								}
+								
+								return tripStopLocationCode.substring(0, 3) === callingAtCode.substring(0, 3);
+							});
+						}
+						
+						if (callsAtFilter) {
+							// Never replace "Bank Headshunt" with "Bank" for display
+							const fromLocation = trip.from;
+							const toLocation = trip.to;
+							
+							results.push({
+								runNumber: trip.runNumber,
+								tripNumber: trip.tripNumber,
+								from: fromLocation,
+								to: toLocation,
+								arrivalTime: stop.arrivalTime,
+								departureTime: stop.departureTime,
+								platform: stop.platform,
+								locationCode,
+								originalLocationCode: stop.originalLocationCode
+							});
+						}
+					}
+				}
+			});
+			
+			// Sort results by time
+			return results.sort((a, b) => {
+				return parseTimeTodaySeconds(a.arrivalTime) - parseTimeTodaySeconds(b.arrivalTime);
+			});
+		}
+        
+        function parseTimeTodaySeconds(timeStr) {
+            const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+            return hours * 3600 + minutes * 60 + seconds;
+        }
+        
+        function displaySearchResults(results, locationDisplayName, locationCode, callingAtDisplayName, timeInput) {
+            const searchResults = document.getElementById('searchResults');
+            searchResults.innerHTML = '';
+            
+            if (results.length === 0) {
+                searchResults.innerHTML = `<div class="no-results">No trains found for ${locationDisplayName} at the specified time.</div>`;
+                return;
+            }
+            
+            // Create location header with search parameters
+            const locationHeader = document.createElement('div');
+            locationHeader.className = 'location-header';
+            
+            // Create header with line-breaking spans
+            if (callingAtDisplayName) {
+                locationHeader.innerHTML = `
+                    <span class="header-train-text">Trains from</span>
+                    <span class="header-location-text">${locationDisplayName}</span>
+                    <span class="header-calling-text">to ${callingAtDisplayName}</span>
+                    <span class="header-time-text">at around ${timeInput}</span>
+                `;
+            } else {
+                locationHeader.innerHTML = `
+                    <span class="header-train-text">Trains from</span>
+                    <span class="header-location-text">${locationDisplayName}</span>
+                    <span class="header-time-text">at around ${timeInput}</span>
+                `;
+            }
+            
+            searchResults.appendChild(locationHeader);
+            
+            // Check if we're looking at a whole station (locationCode.length === 3)
+            // or a specific platform
+            const isStation = locationCode.length === 3 || locationCode === 'BANH';
+            
+            // Special handling for Bank Headshunt
+            if (locationCode === 'BANH') {
+                // Create a single table for Bank Headshunt (no platforms)
+                searchResults.appendChild(createResultsTable(results));
+                return;
+            }
+            
+            if (isStation) {
+                // Group results by platform
+                const platformGroups = {};
+                
+                results.forEach(result => {
+                    const platform = result.platform || 'None';
+                    if (!platformGroups[platform]) {
+                        platformGroups[platform] = [];
+                    }
+                    platformGroups[platform].push(result);
+                });
+				
+				if (locationCode === 'BAN') {
+					Object.keys(platformGroups).forEach(platform => {
+						platformGroups[platform] = platformGroups[platform].filter(result => 
+							!(result.location === 'Bank Headshunt' || result.originalLocationCode === 'BANH')
+						);
+						
+						// Remove empty platform groups
+						if (platformGroups[platform].length === 0) {
+							delete platformGroups[platform];
+						}
+					});
+				}				
+                
+                // Create a table for each platform, sorted by platform number
+                Object.entries(platformGroups)
+                    .sort((a, b) => {
+                        // Sort platforms numerically with special handling for combined platforms "3/4"
+                        const platformA = a[0];
+                        const platformB = b[0];
+                        
+                        // Handle special cases
+                        if (platformA === 'None') return -1;
+                        if (platformB === 'None') return 1;
+                        
+                        // Handle platforms with slashes
+                        if (platformA.includes('/') || platformB.includes('/')) {
+                            if (platformA.includes('/') && platformB.includes('/')) {
+                                return parseInt(platformA.split('/')[0]) - parseInt(platformB.split('/')[0]);
+                            }
+                            return platformA.includes('/') ? 1 : -1;
+                        }
+                        
+                        return parseInt(platformA) - parseInt(platformB);
+                    })
+					.forEach(([platform, platformResults]) => {
+						if (platformResults.length === 0) return;
+						
+						// Check if this is the only platform for this station
+						const isOnlyPlatform = Object.keys(platformGroups).length === 1;
+						
+						// Only display platform header if there are multiple platforms
+						if (!isOnlyPlatform) {
+							// Display platform name
+							let platformHeader;
+							if (platform === 'None') {
+								platformHeader = 'Platform Unknown';
+							} else {
+								// For STR4A_4B special case
+								if (platform === '4A_4B') {
+									platformHeader = 'Platform 4A and 4B';
+								} else {
+									platformHeader = `Platform ${platform.replace('_', ' and ')}`;
+								}
+							}
+							
+							const platformHeaderDiv = document.createElement('div');
+							platformHeaderDiv.className = 'platform-header';
+							platformHeaderDiv.textContent = platformHeader;
+							searchResults.appendChild(platformHeaderDiv);
+						}
+						
+						// Create results table for this platform
+						searchResults.appendChild(createResultsTable(platformResults));
+					});
+            } else {
+                // Create a single table for the specific platform
+                searchResults.appendChild(createResultsTable(results));
+            }
+        }
+        
+        function createResultsTable(results) {
+            const table = document.createElement('table');
+            table.className = 'results-table';
+            
+            // Create header row
+            const headerRow = document.createElement('tr');
+            ['Run', 'From', 'To', 'Arriving', 'Departing'].forEach(headerText => {
+                const th = document.createElement('th');
+                th.textContent = headerText;
+                headerRow.appendChild(th);
+            });
+            
+            const thead = document.createElement('thead');
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+            
+            // Create body
+            const tbody = document.createElement('tbody');
+            
+            results.forEach(result => {
+                const row = document.createElement('tr');
+                row.className = 'clickable';
+                
+                // Add run number cell
+                const runCell = document.createElement('td');
+                runCell.textContent = result.runNumber;
+                runCell.style.color = '#1e88e5';
+                row.appendChild(runCell);
+                
+                // Add from cell
+                const fromCell = document.createElement('td');
+                fromCell.textContent = result.from;
+                row.appendChild(fromCell);
+                
+                // Add to cell
+                const toCell = document.createElement('td');
+                toCell.textContent = result.to;
+                row.appendChild(toCell);
+                
+                // Add arriving cell
+                const arrivingCell = document.createElement('td');
+                arrivingCell.textContent = result.arrivalTime;
+                row.appendChild(arrivingCell);
+                
+                // Add departing cell
+                const departingCell = document.createElement('td');
+                departingCell.textContent = result.departureTime;
+                row.appendChild(departingCell);
+                
+                // Add click handler to view this train
+                row.onclick = () => {
+                    const timetable = document.getElementById('daySelector').value;
+                    window.location.href = `/index.html#timetable=${timetable}&run=${result.runNumber}&trip=${result.tripNumber}`;
+                };
+                
+                tbody.appendChild(row);
+            });
+            
+            table.appendChild(tbody);
+            return table;
+        }
+
+        window.onload = () => {
+            // Check TfL status first
+            checkTfLStatus();
+            
+            fetchTimetablePaths().then((defaultTimetable) => {
+                if (!window.location.hash && defaultTimetable) {
+                    const newURL = `${window.location.pathname}#timetable=${defaultTimetable}`;
+                    window.history.replaceState(null, '', newURL);
+                    processCSVFromURL();
+                } else {
+                    processCSVFromURL();
+                }
+            });
+
+            // Listen for hashchange event
+            window.addEventListener('hashchange', processCSVFromURL);
+        };
+    </script>
+</body>
+</html>
