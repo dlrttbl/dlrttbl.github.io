@@ -2,11 +2,12 @@
 
 ## Overview
 
-The **DLR Timetable Explorer Tool** is a web-based single-page application for viewing Docklands Light Railway (DLR) timetables. It uses JavaScript to load CSV timetable data from external files specified in `paths.txt` and `archivedpaths.txt`, providing users with interactive train schedule details.
+The **DLR Timetable Explorer Tool** is a web-based application for viewing Docklands Light Railway (DLR) timetables. It uses JavaScript to load CSV timetable data from external files specified in `paths.txt` and `archivedpaths.txt`, providing users with interactive train schedule details.
 
 ## Project Directory Layout
 
 - `main/index.html`: The main HTML file for the tool.
+- `main/search.html`: A dedicated page for searching train services by location, and time.
 - `main/paths.txt`: A text file containing links to the current timetable CSV files. (These will populate the timetable dropdown when the site loads.)
 - `main/archivedpaths.txt`: A text file containing links to archived timetable CSV files. (These are hidden from the timetable dropdown but can be navigated to directly by URL or found in the dropdown by using /#archived.)
 - `main/active timetables/`: Directory containing active timetable CSV files.
@@ -69,6 +70,16 @@ URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main
 - **Timetable Data**: CSV files linked in `paths.txt` and `archivedpaths.txt` are fetched, parsed, and displayed. The tool presents information about train runs, allowing users to see departure and arrival times, platforms, and detailed trip breakdowns.
 - **Run and Trip Navigation**: Users can select train run numbers to see detailed schedules, view individual trips within a run, or toggle to see a run's full schedule.
 - **Archived Timetables**: Users can access archived timetables using `#archived` in the URL, allowing them to view older schedules if needed.
+
+## Search Page (`search.html`)
+
+The **Search Page** (`search.html`) provides a convenient way to look up **DLR train services** based on station locations, platform numbers, and departure times.
+
+### Features:
+
+- **Search by Location:** Enter a station name or platform number to find trains stopping there.
+- **Time Filtering: Specify a time to locate services running around a particular time. Results will be returned for 5 minutes before and 20 minutes after the specified time.**
+- **Calling-At Filtering:** Optionally refine results by selecting a station where the train should pass through.
 
 ## TfL Service Status Integration
 
