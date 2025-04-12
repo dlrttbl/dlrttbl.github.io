@@ -20,4 +20,20 @@ Mapping: 7
 Applies: '2025-04-11'
 
 Mapping: 5
-Applies: '2025-04-18/2025-04-25'
+Applies: '2025-04-18/2025-04-21'
+
+Mapping: 1
+Applies: '2025-04-27'
+
+Mapping: 5
+Applies: '2025-05-03/2025-05-05'
+
+Mapping: 5
+Applies: '2025-05-10/2025-05-11'
+
+Mapping: 5
+Applies: '2025-05-17/2025-05-18'
+
+
+Mapping: 5
+Applies: '2025-05-31/2025-06-01'
