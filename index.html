@@ -1320,7 +1320,7 @@
 			const runNumber = document.getElementById('currentRun').textContent.split(' ')[1];
 			
 			if (!currentRunData) {
-				detailsOutput.innerHTML = 'Select a run to view info, or switch to <a href="/search" style="color: #1e88e5; text-decoration: none;">search by location</a> (New!)';
+				detailsOutput.innerHTML = 'Select a run to view info, or switch to <a href="/search" style="color: #1e88e5; text-decoration: none;">search by location</a>';
 				return;
 			}
 
@@ -1666,7 +1666,7 @@
             currentRunData = null;
             selectedTrip = null;
             document.getElementById('currentRun').textContent = '';
-            document.getElementById('detailsOutput').innerHTML = 'Select a run to view info, or switch to <a href="/search" style="color: #1e88e5; text-decoration: none;">search by location</a> (New!)';
+            document.getElementById('detailsOutput').innerHTML = 'Select a run to view info, or switch to <a href="/search" style="color: #1e88e5; text-decoration: none;">search by location</a>';
             updateNavigationButtons();
         }
     </script>
