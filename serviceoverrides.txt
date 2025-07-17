@@ -54,3 +54,36 @@ Applies: '2025-07-05/2025-07-06'
 
 Mapping: 5
 Applies: '2025-07-19/2025-07-20'
+
+Mapping: 1
+Applies: '2025-07-21/2025-07-24'
+
+Mapping: 5
+Applies: '2025-07-26/2025-07-27'
+
+Mapping: 1
+Applies: '2025-07-28/2025-07-30'
+
+Mapping: 5
+Applies: '2025-08-02/2025-08-03'
+
+Mapping: 5
+Applies: '2025-08-15/2025-08-17'
+
+Mapping: 5
+Applies: '2025-08-30/2025-08-31'
+
+Mapping: 5
+Applies: '2025-09-27/2025-09-28'
+
+Mapping: 5
+Applies: '2025-10-04/2025-10-05'
+
+Mapping: 5
+Applies: '2025-10-11/2025-10-12'
+
+Mapping: 5
+Applies: '2025-10-19'
+
+Mapping: 5
+Applies: '2025-10-30/2025-11-02'
