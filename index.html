@@ -352,7 +352,7 @@
 			This tool uses the base WTTs (currently <span id="timetableFiles"></span>) and will be incorrect during periods of modified working 
 			(e.g., weekend engineering works).<br><br>
 			<b>Updates:</b><br>
-			17/07/25 Uploaded new temporary timetables coming into effect at the end of July UFN<br><br>
+			17/07/25 Uploaded new temporary timetables coming into effect from the end of July UFN.<br><br>
 			06/03/25 Added a new 'search by location' page! You can now look up train services based on locations, platform number, and departure time.<br><br>
 			01/03/25 The tool now automatically detects and shows when runs transition throughout the day (i.e Run 302 becoming Run 456.)<br><br>
 			19/02/25 The tool will now default to the correct timetable for the current day of the week, and has had live service status added to warn when info is likely incorrect.
@@ -789,26 +789,30 @@
 		}
 
 		function isDateInRange(date, rangeStr) {
-			// Remove quotes and split by comma if multiple values
+			const compareDate = new Date(date);
+			compareDate.setHours(0, 0, 0, 0);
+			
+			// If the string contains " from ", treat it as a single "daysFrom" range
+			if (rangeStr.includes(' from ')) {
+				const parsed = parseDateRange(rangeStr);
+				
+				if (parsed.type === 'daysFrom') {
+					if (compareDate >= parsed.fromDate) {
+						const dayName = getDayName(date);
+						return parsed.days.includes(dayName);
+					}
+					return false;
+				}
+			}
+			
+			// Otherwise, split by comma and check each range
 			const ranges = rangeStr.split(',').map(r => r.trim().replace(/['"]/g, ''));
 			
-			// Check each range
 			return ranges.some(range => {
 				const parsed = parseDateRange(range);
-				const compareDate = new Date(date);
-				compareDate.setHours(0, 0, 0, 0);
 				
 				switch (parsed.type) {
-					case 'daysFrom':
-						// Check if date is >= fromDate AND matches one of the days
-						if (compareDate >= parsed.fromDate) {
-							const dayName = getDayName(date);
-							return parsed.days.includes(dayName);
-						}
-						return false;
-						
 					case 'days':
-						// Simple day name check
 						const dayName = getDayName(date);
 						return parsed.days.includes(dayName);
 						
@@ -816,7 +820,7 @@
 						return +compareDate === +parsed.date;
 						
 					case 'dateRange':
-						return compareDate >= parsed.start && compareDate <= parsed.end;
+						return compareDate >= parsed.start && parsedfate <= parsed.end;
 						
 					default:
 						return false;
