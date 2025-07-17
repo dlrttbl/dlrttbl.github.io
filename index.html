@@ -361,7 +361,7 @@
 
     <script>
 		const STATUS_MAPPINGS = {
-			0: { name: 'Special Service', color: '#f9ff00', suffix: 'that the DLR is operating a Special Service.' },
+			0: { name: 'Modified Service', color: '#f9ff00', suffix: 'that the DLR is operating a Modified Service.' },
 			1: { name: 'Closed', color: '#F44336', suffix: 'that the DLR is Closed.' },
 			2: { name: 'Suspended', color: '#ff0000', suffix: 'that the DLR is Suspended.' },
 			3: { name: 'Part Suspended', color: '#ff0000', suffix: 'that the DLR is Part Suspended.' },
@@ -606,17 +606,41 @@
 		}
 
 		function getOperatingDate() {
-			const now = new Date();
-			// If it's before 3 AM, use the previous day's date
-			if (now.getHours() < 3) {
-				now.setDate(now.getDate() - 1);
-			}
-			return now;
-		}
+            const now = new Date();
+            // If it's before 3 AM, use the previous day's date
+            if (now.getHours() < 3) {
+                now.setDate(now.getDate() - 1);
+            }
+            return now;
+        }
 
+        function getDayName(date) {
+            return date.toLocaleDateString('en-US', { weekday: 'long' });
+        }
+		
 		function parseDateRange(dateStr) {
 			// Remove quotes first
 			dateStr = dateStr.replace(/['"]/g, '');
+			
+			// Check for "from" syntax: 'Monday', 'Tuesday' from '2025-01-01'
+			const fromMatch = dateStr.match(/^(.+?)\s+from\s+(.+)$/);
+			if (fromMatch) {
+				const daysStr = fromMatch[1].trim();
+				const fromDateStr = fromMatch[2].trim();
+				
+				// Parse the days part (comma-separated)
+				const days = daysStr.split(',').map(d => d.trim());
+				
+				// Parse the from date
+				const fromDate = new Date(fromDateStr);
+				fromDate.setHours(0, 0, 0, 0);
+				
+				return {
+					type: 'daysFrom',
+					days: days,
+					fromDate: fromDate
+				};
+			}
 			
 			// Handle date ranges with '/'
 			if (dateStr.includes('/')) {
@@ -625,20 +649,139 @@
 					newDate.setHours(0, 0, 0, 0);
 					return newDate;
 				});
-				return { start, end };
+				return { 
+					type: 'dateRange',
+					start, 
+					end 
+				};
+			}
+			
+			// Check if it's a day name or comma-separated day names
+			const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+			const parts = dateStr.split(',').map(d => d.trim());
+			if (parts.every(part => dayNames.includes(part))) {
+				return {
+					type: 'days',
+					days: parts
+				};
 			}
 			
 			// Handle single date
 			const newDate = new Date(dateStr);
 			newDate.setHours(0, 0, 0, 0);
 			return { 
-				start: newDate, 
-				end: newDate 
+				type: 'singleDate',
+				date: newDate
 			};
+		}		
+		
+		function getNextDayOccurrence(days, currentDate) {
+			const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+			const currentDayIndex = currentDate.getDay();
+			
+			let minDistance = Infinity;
+			
+			days.forEach(dayName => {
+				const targetDayIndex = dayNames.indexOf(dayName);
+				if (targetDayIndex === -1) return;
+				
+				let distance = targetDayIndex - currentDayIndex;
+				if (distance <= 0) distance += 7; // Next week
+				
+				minDistance = Math.min(minDistance, distance);
+			});
+			
+			return minDistance === Infinity ? 7 : minDistance;
+		}				
+
+		function getDistanceToNextApplicability(entry, currentDate) {
+			const parsed = parseDateRange(entry.applies);
+			
+			switch (parsed.type) {
+				case 'singleDate':
+					if (currentDate <= parsed.date) {
+						return Math.abs(parsed.date - currentDate) / (1000 * 60 * 60 * 24);
+					}
+					return Infinity; // Past date
+					
+				case 'dateRange':
+					if (currentDate <= parsed.start) {
+						return Math.abs(parsed.start - currentDate) / (1000 * 60 * 60 * 24);
+					}
+					return Infinity; // Past date range
+					
+				case 'daysFrom':
+					if (currentDate < parsed.fromDate) {
+						return Math.abs(parsed.fromDate - currentDate) / (1000 * 60 * 60 * 24);
+					}
+					// If from date has passed, check next occurrence of the days
+					return getNextDayOccurrence(parsed.days, currentDate);
+					
+				case 'days':
+					return getNextDayOccurrence(parsed.days, currentDate);
+					
+				default:
+					return Infinity;
+			}
 		}
 
-		function getDayName(date) {
-			return date.toLocaleDateString('en-US', { weekday: 'long' });
+		function isObsolete(entry, allEntries, currentDate) {
+			const parsed = parseDateRange(entry.applies);
+			
+			switch (parsed.type) {
+				case 'daysFrom':
+					// Check if there's a newer timetable for the same days that has kicked in
+					const sameDayEntries = allEntries.filter(otherEntry => {
+						if (otherEntry === entry) return false;
+						
+						const otherParsed = parseDateRange(otherEntry.applies);
+						if (otherParsed.type === 'daysFrom') {
+							// Check if they cover the same days
+							const thisDays = parsed.days.sort();
+							const otherDays = otherParsed.days.sort();
+							return JSON.stringify(thisDays) === JSON.stringify(otherDays);
+						}
+						return false;
+					});
+					
+					// Check if any newer timetable for the same days has kicked in
+					return sameDayEntries.some(otherEntry => {
+						const otherParsed = parseDateRange(otherEntry.applies);
+						return otherParsed.fromDate > parsed.fromDate && 
+							   currentDate >= otherParsed.fromDate;
+					});
+					
+				case 'days':
+					// Check if there's a "daysFrom" timetable for the same days that has kicked in
+					const dayFromEntries = allEntries.filter(otherEntry => {
+						if (otherEntry === entry) return false;
+						
+						const otherParsed = parseDateRange(otherEntry.applies);
+						if (otherParsed.type === 'daysFrom') {
+							const thisDays = parsed.days.sort();
+							const otherDays = otherParsed.days.sort();
+							return JSON.stringify(thisDays) === JSON.stringify(otherDays);
+						}
+						return false;
+					});
+					
+					return dayFromEntries.some(otherEntry => {
+						const otherParsed = parseDateRange(otherEntry.applies);
+						return currentDate >= otherParsed.fromDate;
+					});
+					
+				case 'singleDate':
+				case 'dateRange':
+					// These are obsolete if their date(s) have passed
+					if (parsed.type === 'singleDate') {
+						return currentDate > parsed.date;
+					} else {
+						return currentDate > parsed.end;
+					}
+					
+				default:
+					return false;
+			}
 		}
 
 		function isDateInRange(date, rangeStr) {
@@ -647,46 +790,77 @@
 			
 			// Check each range
 			return ranges.some(range => {
-				// If it's a day name
-				if (['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].includes(range)) {
-					return getDayName(date) === range;
-				}
-				
-				// If it's a date or date range
-				const dateRange = parseDateRange(range);
+				const parsed = parseDateRange(range);
 				const compareDate = new Date(date);
 				compareDate.setHours(0, 0, 0, 0);
-				return compareDate >= dateRange.start && compareDate <= dateRange.end;
+				
+				switch (parsed.type) {
+					case 'daysFrom':
+						// Check if date is >= fromDate AND matches one of the days
+						if (compareDate >= parsed.fromDate) {
+							const dayName = getDayName(date);
+							return parsed.days.includes(dayName);
+						}
+						return false;
+						
+					case 'days':
+						// Simple day name check
+						const dayName = getDayName(date);
+						return parsed.days.includes(dayName);
+						
+					case 'singleDate':
+						return +compareDate === +parsed.date;
+						
+					case 'dateRange':
+						return compareDate >= parsed.start && compareDate <= parsed.end;
+						
+					default:
+						return false;
+				}
 			});
 		}
-		
+        
 		function sortTimetablesByApplicability(entries) {
 			const operatingDate = getOperatingDate();
-			const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 			
-			return entries.sort((a, b) => {
-				const aApplies = a.applies.split(',').map(s => s.trim().replace(/['"]/g, ''));
-				const bApplies = b.applies.split(',').map(s => s.trim().replace(/['"]/g, ''));
+			// Filter out obsolete entries
+			const activeEntries = entries.filter(entry => !isObsolete(entry, entries, operatingDate));
+			
+			return activeEntries.sort((a, b) => {
+				const aAppliesNow = isDateInRange(operatingDate, a.applies);
+				const bAppliesNow = isDateInRange(operatingDate, b.applies);
 				
-				// Check if either timetable has a specific date (anything that's not a day name)
-				const aHasSpecificDate = aApplies.some(range => !dayNames.includes(range));
-				const bHasSpecificDate = bApplies.some(range => !dayNames.includes(range));
-				
-				// Check if either timetable applies to the current date/day
-				const aAppliesNow = aApplies.some(range => isDateInRange(operatingDate, range));
-				const bAppliesNow = bApplies.some(range => isDateInRange(operatingDate, range));
-				
-				// If both apply now, specific dates take precedence
+				// If both apply now, prioritize specific dates over day-of-week rules
 				if (aAppliesNow && bAppliesNow) {
-					if (aHasSpecificDate && !bHasSpecificDate) return -1;
-					if (!aHasSpecificDate && bHasSpecificDate) return 1;
+					const aParsed = parseDateRange(a.applies);
+					const bParsed = parseDateRange(b.applies);
+					
+					// Specific dates trump everything
+					if ((aParsed.type === 'singleDate' || aParsed.type === 'dateRange') && 
+						(bParsed.type === 'days' || bParsed.type === 'daysFrom')) {
+						return -1;
+					}
+					if ((bParsed.type === 'singleDate' || bParsed.type === 'dateRange') && 
+						(aParsed.type === 'days' || aParsed.type === 'daysFrom')) {
+						return 1;
+					}
 				}
 				
-				// Then timetables that apply today
+				// Timetables that apply today come first
 				if (aAppliesNow && !bAppliesNow) return -1;
 				if (!aAppliesNow && bAppliesNow) return 1;
 				
-				// If neither applies, sort by name
+				// Among those that don't apply today, prioritize by how soon they will apply
+				if (!aAppliesNow && !bAppliesNow) {
+					const aDistance = getDistanceToNextApplicability(a, operatingDate);
+					const bDistance = getDistanceToNextApplicability(b, operatingDate);
+					
+					if (aDistance !== bDistance) {
+						return aDistance - bDistance;
+					}
+				}
+				
+				// Fall back to alphabetical
 				return a.name.localeCompare(b.name);
 			});
 		}
