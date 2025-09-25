@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DLR Terminal Dwell Time Analyzer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 10px;
+            background-color: #121212;
+            color: #ffffff;
+        }
+        
+        h1, h2, h3 {
+            color: #ffffff;
+            margin: 10px 0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .controls {
+            background-color: #1e1e1e;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #424242;
+            margin-bottom: 20px;
+        }
+        
+        select, button {
+            background-color: #2c2c2c;
+            color: #ffffff;
+            border: 1px solid #424242;
+            padding: 8px 12px;
+            border-radius: 5px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        button {
+            background-color: #1e88e5;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #1565c0;
+        }
+        
+        button:disabled {
+            background-color: #455a64;
+            cursor: not-allowed;
+        }
+        
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .chart-container {
+            background-color: #1e1e1e;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #424242;
+            height: 400px;
+        }
+        
+        .summary-stats {
+            background-color: #1e1e1e;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #424242;
+            margin-bottom: 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .stat-card {
+            background-color: #2c2c2c;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #1e88e5;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: #cccccc;
+        }
+        
+        .terminal-details {
+            background-color: #1e1e1e;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #424242;
+            margin-bottom: 20px;
+        }
+        
+        .terminal-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 10px;
+        }
+        
+        .terminal-card {
+            background-color: #2c2c2c;
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 3px solid #1e88e5;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #1e88e5;
+            font-size: 1.1em;
+            margin: 20px 0;
+        }
+        
+        .error {
+            background-color: #d32f2f;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .filter-status {
+            background-color: #388e3c;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            margin-left: 10px;
+            font-size: 0.9em;
+        }
+        
+        @media (max-width: 768px) {
+            .analysis-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .terminal-list {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls > div:last-child > div {
+                grid-template-columns: 1fr !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>DLR Terminal Dwell Time Analyzer</h1>
+        <p>Analyze average dwell times at terminal stations throughout the day</p>
+        
+        <div class="controls">
+            <label for="timetableSelector">Select Timetable:</label>
+            <select id="timetableSelector">
+                <option value="">Loading timetables...</option>
+            </select>
+            <span id="filterStatus" class="filter-status" style="display: none;">Filters Applied</span>
+            
+            <div style="margin-top: 15px; border-top: 1px solid #424242; padding-top: 15px;">
+                <h3 style="margin: 0 0 10px 0; font-size: 1em;">Filters</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label for="stationFilter">Station:</label>
+                        <select id="stationFilter">
+                            <option value="">All Stations</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="runFilter">Run:</label>
+                        <select id="runFilter">
+                            <option value="">All Runs</option>
+                        </select>
+                    </div>
+                </div>
+                <button onclick="clearFilters()" style="margin-top: 10px;">Clear Filters</button>
+            </div>
+        </div>
+        
+        <div id="loadingIndicator" class="loading" style="display: none;">
+            Analyzing timetable data...
+        </div>
+        
+        <div id="errorMessage" class="error" style="display: none;"></div>
+        
+        <div id="results" style="display: none;">
+            <div class="summary-stats">
+                <h2>Summary Statistics</h2>
+                <div class="stats-grid" id="summaryStats"></div>
+            </div>
+            
+            <div class="analysis-grid">
+                <div class="chart-container">
+                    <canvas id="hourlyChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="stationChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="terminal-details">
+                <h2>Terminal Station Details</h2>
+                <div class="terminal-list" id="terminalDetails"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let timetablePaths = {};
+        let archivedTimetablePaths = {};
+        let rawAnalysisData = null;
+        let filteredAnalysisData = null;
+        let hourlyChart = null;
+        let stationChart = null;
+
+        const locationMapping = {
+            'ABR': 'Abbey Road', 'ALS': 'All Saints', 'BAN': 'Bank', 'BEC': 'Beckton', 
+            'BEP': 'Beckton Park', 'BLA': 'Blackwall', 'BOC': 'Bow Church', 'CAW': 'Canary Wharf',
+            'CAT': 'Canning Town', 'CRO': 'Crossharbour', 'CUH': 'Custom House', 'CUS': 'Cutty Sark',
+            'CYP': 'Cyprus', 'DEB': 'Deptford Bridge', 'DER': 'Devons Road', 'EAI': 'East India',
+            'ELR': 'Elverson Road', 'GAR': 'Gallions Reach', 'GRE': 'Greenwich', 'HEQ': 'Heron Quays',
+            'ISG': 'Island Gardens', 'KGV': 'King George V', 'LAP': 'Langdon Park', 'LEW': 'Lewisham',
+            'LIM': 'Limehouse', 'LCA': 'London City Airport', 'MUD': 'Mudchute', 'PDK': 'Pontoon Dock',
+            'POP': 'Poplar', 'PRR': 'Prince Regent', 'PML': 'Pudding Mill Lane', 'ROA': 'Royal Albert',
+            'ROV': 'Royal Victoria', 'SHA': 'Shadwell', 'SOQ': 'South Quay', 'STL': 'Star Lane',
+            'SHS': 'Stratford High Street', 'STI': 'Stratford International', 'STR': 'Stratford',
+            'TOG': 'Tower Gateway', 'WEH': 'West Ham', 'WIQ': 'West India Quay', 'WST': 'West Silvertown',
+            'WES': 'Westferry', 'WOA': 'Woolwich Arsenal'
+        };
+
+        function getOperatingDate() {
+            const now = new Date();
+            if (now.getHours() < 3) {
+                now.setDate(now.getDate() - 1);
+            }
+            return now;
+        }
+
+        function getDayName(date) {
+            return date.toLocaleDateString('en-US', { weekday: 'long' });
+        }
+        
+        function parseDateRange(dateStr) {
+            dateStr = dateStr.replace(/['"]/g, '');
+            
+            const fromMatch = dateStr.match(/^(.+?)\s+from\s+(.+)$/);
+            if (fromMatch) {
+                const daysStr = fromMatch[1].trim();
+                const fromDateStr = fromMatch[2].trim();
+                
+                const days = daysStr.split(',').map(d => d.trim().replace(/['"]/g, ''));
+                
+                const cleanFromDateStr = fromDateStr.replace(/['"]/g, '');
+                const fromDate = new Date(cleanFromDateStr);
+                fromDate.setHours(0, 0, 0, 0);
+                
+                return {
+                    type: 'daysFrom',
+                    days: days,
+                    fromDate: fromDate
+                };
+            }
+            
+            if (dateStr.includes('/')) {
+                const [start, end] = dateStr.split('/').map(d => {
+                    const cleanDate = d.trim().replace(/['"]/g, '');
+                    const newDate = new Date(cleanDate);
+                    newDate.setHours(0, 0, 0, 0);
+                    return newDate;
+                });
+                return { 
+                    type: 'dateRange',
+                    start, 
+                    end 
+                };
+            }
+            
+            const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            const parts = dateStr.split(',').map(d => d.trim().replace(/['"]/g, ''));
+            if (parts.every(part => dayNames.includes(part))) {
+                return {
+                    type: 'days',
+                    days: parts
+                };
+            }
+            
+            const cleanDate = dateStr.replace(/['"]/g, '');
+            const newDate = new Date(cleanDate);
+            newDate.setHours(0, 0, 0, 0);
+            return { 
+                type: 'singleDate',
+                date: newDate
+            };
+        }    
+        
+        function getNextDayOccurrence(days, currentDate) {
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const currentDayIndex = currentDate.getDay();
+            
+            let minDistance = Infinity;
+            
+            days.forEach(dayName => {
+                const targetDayIndex = dayNames.indexOf(dayName);
+                if (targetDayIndex === -1) return;
+                
+                let distance = targetDayIndex - currentDayIndex;
+                if (distance <= 0) distance += 7;
+                
+                minDistance = Math.min(minDistance, distance);
+            });
+            
+            return minDistance === Infinity ? 7 : minDistance;
+        }                
+
+        function getDistanceToNextApplicability(entry, currentDate) {
+            const parsed = parseDateRange(entry.applies);
+            
+            switch (parsed.type) {
+                case 'singleDate':
+                    if (currentDate <= parsed.date) {
+                        return Math.abs(parsed.date - currentDate) / (1000 * 60 * 60 * 24);
+                    }
+                    return Infinity;
+                    
+                case 'dateRange':
+                    if (currentDate <= parsed.start) {
+                        return Math.abs(parsed.start - currentDate) / (1000 * 60 * 60 * 24);
+                    }
+                    return Infinity;
+                    
+                case 'daysFrom':
+                    if (currentDate < parsed.fromDate) {
+                        return Math.abs(parsed.fromDate - currentDate) / (1000 * 60 * 60 * 24);
+                    }
+                    return getNextDayOccurrence(parsed.days, currentDate);
+                    
+                case 'days':
+                    return getNextDayOccurrence(parsed.days, currentDate);
+                    
+                default:
+                    return Infinity;
+            }
+        }
+
+        function isObsolete(entry, allEntries, currentDate) {
+            const parsed = parseDateRange(entry.applies);
+            
+            switch (parsed.type) {
+                case 'daysFrom':
+                    const sameDayEntries = allEntries.filter(otherEntry => {
+                        if (otherEntry === entry) return false;
+                        
+                        const otherParsed = parseDateRange(otherEntry.applies);
+                        if (otherParsed.type === 'daysFrom') {
+                            const thisDays = parsed.days.sort();
+                            const otherDays = otherParsed.days.sort();
+                            return JSON.stringify(thisDays) === JSON.stringify(otherDays);
+                        }
+                        return false;
+                    });
+                    
+                    return sameDayEntries.some(otherEntry => {
+                        const otherParsed = parseDateRange(otherEntry.applies);
+                        return otherParsed.fromDate > parsed.fromDate && 
+                               currentDate >= otherParsed.fromDate;
+                    });
+                    
+                case 'days':
+                    const dayFromEntries = allEntries.filter(otherEntry => {
+                        if (otherEntry === entry) return false;
+                        
+                        const otherParsed = parseDateRange(otherEntry.applies);
+                        if (otherParsed.type === 'daysFrom') {
+                            const thisDays = parsed.days.sort();
+                            const otherDays = otherParsed.days.sort();
+                            return JSON.stringify(thisDays) === JSON.stringify(otherDays);
+                        }
+                        return false;
+                    });
+                    
+                    return dayFromEntries.some(otherEntry => {
+                        const otherParsed = parseDateRange(otherEntry.applies);
+                        return currentDate >= otherParsed.fromDate;
+                    });
+                    
+                case 'singleDate':
+                case 'dateRange':
+                    if (parsed.type === 'singleDate') {
+                        return currentDate > parsed.date;
+                    } else {
+                        return currentDate > parsed.end;
+                    }
+                    
+                default:
+                    return false;
+            }
+        }
+
+        function isDateInRange(date, rangeStr) {
+            const compareDate = new Date(date);
+            compareDate.setHours(0, 0, 0, 0);
+            
+            if (rangeStr.includes(' from ')) {
+                const parsed = parseDateRange(rangeStr);
+                
+                if (parsed.type === 'daysFrom') {
+                    if (compareDate >= parsed.fromDate) {
+                        const dayName = getDayName(date);
+                        return parsed.days.includes(dayName);
+                    }
+                    return false;
+                }
+            }
+            
+            const ranges = rangeStr.split(',').map(r => r.trim().replace(/['"]/g, ''));
+            
+            return ranges.some(range => {
+                const parsed = parseDateRange(range);
+                
+                switch (parsed.type) {
+                    case 'days':
+                        const dayName = getDayName(date);
+                        return parsed.days.includes(dayName);
+                        
+                    case 'singleDate':
+                        return +compareDate === +parsed.date;
+                        
+                    case 'dateRange':
+                        return compareDate >= parsed.start && compareDate <= parsed.end;
+                        
+                    default:
+                        return false;
+                }
+            });
+        }
+        
+        function sortTimetablesByApplicability(entries) {
+            const operatingDate = getOperatingDate();
+            
+            const activeEntries = entries.filter(entry => !isObsolete(entry, entries, operatingDate));
+            
+            return activeEntries.sort((a, b) => {
+                const aAppliesNow = isDateInRange(operatingDate, a.applies);
+                const bAppliesNow = isDateInRange(operatingDate, b.applies);
+                
+                if (aAppliesNow && bAppliesNow) {
+                    const aParsed = parseDateRange(a.applies);
+                    const bParsed = parseDateRange(b.applies);
+                    
+                    if ((aParsed.type === 'singleDate' || aParsed.type === 'dateRange') && 
+                        (bParsed.type === 'days' || bParsed.type === 'daysFrom')) {
+                        return -1;
+                    }
+                    if ((bParsed.type === 'singleDate' || bParsed.type === 'dateRange') && 
+                        (aParsed.type === 'days' || aParsed.type === 'daysFrom')) {
+                        return 1;
+                    }
+                }
+                
+                if (aAppliesNow && !bAppliesNow) return -1;
+                if (!aAppliesNow && bAppliesNow) return 1;
+                
+                if (!aAppliesNow && !bAppliesNow) {
+                    const aDistance = getDistanceToNextApplicability(a, operatingDate);
+                    const bDistance = getDistanceToNextApplicability(b, operatingDate);
+                    
+                    if (aDistance !== bDistance) {
+                        return aDistance - bDistance;
+                    }
+                }
+                
+                return a.name.localeCompare(b.name);
+            });
+        }
+
+        async function fetchTimetablePaths() {
+            try {
+                const response = await fetch('https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/paths.txt', { cache: 'no-store' });
+                const text = await response.text();
+                const lines = text.split('\n').filter(line => line.trim() !== '');
+                
+                let currentEntry = {};
+                const timetableEntries = [];
+                
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    if (trimmedLine.startsWith('Name:')) {
+                        if (Object.keys(currentEntry).length > 0) {
+                            timetableEntries.push({...currentEntry});
+                        }
+                        currentEntry = {
+                            name: trimmedLine.substring(5).trim()
+                        };
+                    } else if (trimmedLine.startsWith('Applies:')) {
+                        currentEntry.applies = trimmedLine.substring(8).trim();
+                    } else if (trimmedLine.startsWith('URL:')) {
+                        currentEntry.url = trimmedLine.substring(4).trim();
+                        const fileName = currentEntry.url.substring(currentEntry.url.lastIndexOf('/') + 1, currentEntry.url.lastIndexOf('.'));
+                        currentEntry.fileName = fileName.toLowerCase();
+                    }
+                }
+                
+                if (Object.keys(currentEntry).length > 0) {
+                    timetableEntries.push(currentEntry);
+                }
+
+                try {
+                    const archivedResponse = await fetch('https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/archivedpaths.txt', { cache: 'no-store' });
+                    const archivedText = await archivedResponse.text();
+                    const archivedLines = archivedText.split('\n').filter(line => line.trim() !== '');
+                    
+                    let currentArchivedEntry = {};
+                    for (const line of archivedLines) {
+                        const trimmedLine = line.trim();
+                        if (trimmedLine.startsWith('Name:')) {
+                            if (Object.keys(currentArchivedEntry).length > 0) {
+                                const fileName = currentArchivedEntry.url.substring(currentArchivedEntry.url.lastIndexOf('/') + 1, currentArchivedEntry.url.lastIndexOf('.'));
+                                archivedTimetablePaths[fileName.toLowerCase()] = {
+                                    url: currentArchivedEntry.url,
+                                    name: currentArchivedEntry.name
+                                };
+                            }
+                            currentArchivedEntry = {
+                                name: trimmedLine.substring(5).trim()
+                            };
+                        } else if (trimmedLine.startsWith('URL:')) {
+                            currentArchivedEntry.url = trimmedLine.substring(4).trim();
+                        }
+                    }
+                    if (Object.keys(currentArchivedEntry).length > 0) {
+                        const fileName = currentArchivedEntry.url.substring(currentArchivedEntry.url.lastIndexOf('/') + 1, currentArchivedEntry.url.lastIndexOf('.'));
+                        archivedTimetablePaths[fileName.toLowerCase()] = {
+                            url: currentArchivedEntry.url,
+                            name: currentArchivedEntry.name
+                        };
+                    }
+                } catch (error) {
+                    console.error('Error fetching archived timetable paths:', error);
+                }
+
+                const select = document.getElementById('timetableSelector');
+                select.innerHTML = '';
+                
+                const sortedEntries = sortTimetablesByApplicability(timetableEntries);
+                
+                sortedEntries.forEach(entry => {
+                    timetablePaths[entry.fileName] = entry.url;
+                    
+                    const option = document.createElement('option');
+                    option.value = entry.fileName;
+                    option.textContent = entry.name;
+                    select.appendChild(option);
+                });
+
+                // Auto-analyze the first timetable
+                if (sortedEntries.length > 0) {
+                    await analyzeData();
+                }
+                
+                return sortedEntries[0]?.fileName;
+            } catch (error) {
+                console.error('Error fetching timetable paths:', error);
+                const select = document.getElementById('timetableSelector');
+                select.innerHTML = '<option value="">Error loading timetables</option>';
+                showError('Error loading timetable paths: ' + error.message);
+                return null;
+            }
+        }
+
+        function parseTime(timeStr) {
+            // For DLR timetables, time is continuous:
+            // 23:00 = 23 hours from start of service
+            // 24:00 = 24 hours (midnight)
+            // 25:00 = 25 hours (1 AM next day)
+            // 26:00 = 26 hours (2 AM next day)
+            const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+            return (hours * 3600) + (minutes * 60) + seconds;
+        }
+
+        function getDisplayHour(seconds) {
+            // For display purposes, show the actual hour including 24, 25, 26
+            return Math.floor(seconds / 3600);
+        }
+
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function formatDuration(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}m ${secs}s`;
+        }
+
+        async function analyzeData() {
+            const selectedTimetable = document.getElementById('timetableSelector').value;
+            if (!selectedTimetable) {
+                return;
+            }
+
+            document.getElementById('loadingIndicator').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+
+            try {
+                const csvUrl = timetablePaths[selectedTimetable];
+                const response = await fetch(csvUrl);
+                const csvText = await response.text();
+                
+                rawAnalysisData = analyzeDwellTimes(csvText);
+                filteredAnalysisData = null;
+                document.getElementById('filterStatus').style.display = 'none';
+                
+                displayResults(rawAnalysisData);
+                
+            } catch (error) {
+                showError('Error analyzing data: ' + error.message);
+            } finally {
+                document.getElementById('loadingIndicator').style.display = 'none';
+            }
+        }
+
+        function detectTrips(stops) {
+            const trips = [];
+            let currentTrip = [];
+            let tripNumber = 1;
+
+            for (let i = 0; i < stops.length; i++) {
+                currentTrip.push(stops[i]);
+
+                if (i < stops.length - 2) {
+                    const loc1 = stops[i].location;
+                    const loc2 = stops[i + 1].location;
+                    const loc3 = stops[i + 2].location;
+
+                    if (loc1 === loc3 && loc1 !== loc2) {
+                        trips.push({
+                            tripNumber,
+                            from: currentTrip[0].location,
+                            departureTime: currentTrip[0].departureTime,
+                            to: loc2,
+                            arrivalTime: stops[i + 1].arrivalTime,
+                            stops: [...currentTrip, stops[i + 1]]
+                        });
+                        
+                        currentTrip = [stops[i + 1]];
+                        tripNumber++;
+                        i++;
+                    }
+                }
+            }
+
+            if (currentTrip.length > 0) {
+                trips.push({
+                    tripNumber,
+                    from: currentTrip[0].location,
+                    departureTime: currentTrip[0].departureTime,
+                    to: currentTrip[currentTrip.length - 1].location,
+                    arrivalTime: currentTrip[currentTrip.length - 1].arrivalTime,
+                    stops: [...currentTrip]
+                });
+            }
+
+            return trips;
+        }
+
+        function analyzeDwellTimes(csvText) {
+            const lines = csvText.split('\n').filter(line => line.trim() !== '');
+            const runData = {};
+            
+            const junctions = [
+                'JRMS', 'JRMX', 'JCAW', 'JWEM', 'JCRO', 'JC2M', 'JC3M',
+                'JC4M', 'JROM', 'JWEX', 'JCTM', 'JCTX', 'JWIQ', 'JNQX',
+                'JNQM', 'JWSX', 'JWSM', 'ISP2', 'ISP3'
+            ];
+
+            lines.forEach(line => {
+                const parts = line.split(',');
+                if (parts.length >= 7) {
+                    const runNumber = parts[1].trim();
+                    const locationCode = parts[4].trim();
+                    const arrivalTime = parts[5].trim();
+                    const departureTime = parts[6].trim();
+
+                    if (!junctions.includes(locationCode)) {
+                        if (!runData[runNumber]) {
+                            runData[runNumber] = [];
+                        }
+
+                        let location = '';
+                        let platform = '';
+
+                        if (locationCode === 'BANH') {
+                            location = 'Bank Headshunt';
+                        } else {
+                            const codePrefix = locationCode.slice(0, 3);
+                            platform = locationCode.slice(3);
+
+                            if (locationMapping[codePrefix]) {
+                                location = locationMapping[codePrefix];
+                                if (['LEW', 'BEC', 'STI', 'WOA'].includes(codePrefix) || locationCode === 'STR4B') {
+                                    platform = '';
+                                }
+                            } else {
+                                location = locationCode;
+                                platform = '';
+                            }
+                        }
+
+                        runData[runNumber].push({
+                            location,
+                            platform,
+                            locationCode,
+                            arrivalTime,
+                            departureTime,
+                            arrivalSeconds: parseTime(arrivalTime),
+                            departureSeconds: parseTime(departureTime)
+                        });
+                    }
+                }
+            });
+
+            const terminalDwells = [];
+            const runDwells = {}; // Track dwells by run number
+            const stationStats = {};
+            // Extended hourly stats to handle up to hour 26
+            const hourlyStats = Array.from({ length: 27 }, () => ({ count: 0, totalDwell: 0 }));
+
+            // First pass: collect all dwells by run
+            Object.entries(runData).forEach(([runNumber, stops]) => {
+                const trips = detectTrips(stops);
+                
+                if (!runDwells[runNumber]) {
+                    runDwells[runNumber] = [];
+                }
+                
+                trips.forEach(trip => {
+                    const terminalStop = trip.stops[trip.stops.length - 1];
+                    const dwellTime = terminalStop.departureSeconds - terminalStop.arrivalSeconds;
+                    
+                    if (dwellTime > 0) {
+                        const hour = getDisplayHour(terminalStop.arrivalSeconds);
+                        
+                        runDwells[runNumber].push({
+                            runNumber,
+                            tripNumber: trip.tripNumber,
+                            location: terminalStop.location,
+                            arrivalTime: terminalStop.arrivalTime,
+                            departureTime: terminalStop.departureTime,
+                            arrivalSeconds: terminalStop.arrivalSeconds,
+                            dwellTime,
+                            hour
+                        });
+                    }
+                });
+            });
+
+            // Second pass: add dwells to final list, excluding first and last of each run
+            Object.entries(runDwells).forEach(([runNumber, dwells]) => {
+                if (dwells.length > 2) {
+                    // Exclude first and last dwell if there are more than 2 dwells
+                    for (let i = 1; i < dwells.length - 1; i++) {
+                        const dwell = dwells[i];
+                        terminalDwells.push(dwell);
+                        
+                        if (!stationStats[dwell.location]) {
+                            stationStats[dwell.location] = { count: 0, totalDwell: 0, dwells: [] };
+                        }
+                        stationStats[dwell.location].count++;
+                        stationStats[dwell.location].totalDwell += dwell.dwellTime;
+                        stationStats[dwell.location].dwells.push(dwell.dwellTime);
+                        
+                        if (dwell.hour >= 0 && dwell.hour < 27) {
+                            hourlyStats[dwell.hour].count++;
+                            hourlyStats[dwell.hour].totalDwell += dwell.dwellTime;
+                        }
+                    }
+                } else if (dwells.length > 0) {
+                    // If 2 or fewer dwells, include all (can't exclude both first and last)
+                    dwells.forEach(dwell => {
+                        terminalDwells.push(dwell);
+                        
+                        if (!stationStats[dwell.location]) {
+                            stationStats[dwell.location] = { count: 0, totalDwell: 0, dwells: [] };
+                        }
+                        stationStats[dwell.location].count++;
+                        stationStats[dwell.location].totalDwell += dwell.dwellTime;
+                        stationStats[dwell.location].dwells.push(dwell.dwellTime);
+                        
+                        if (dwell.hour >= 0 && dwell.hour < 27) {
+                            hourlyStats[dwell.hour].count++;
+                            hourlyStats[dwell.hour].totalDwell += dwell.dwellTime;
+                        }
+                    });
+                }
+            });
+
+            Object.keys(stationStats).forEach(station => {
+                const stats = stationStats[station];
+                stats.avgDwell = stats.totalDwell / stats.count;
+                stats.dwells.sort((a, b) => a - b);
+                stats.minDwell = stats.dwells[0];
+                stats.maxDwell = stats.dwells[stats.dwells.length - 1];
+                stats.medianDwell = stats.dwells[Math.floor(stats.dwells.length / 2)];
+            });
+
+            hourlyStats.forEach(hour => {
+                hour.avgDwell = hour.count > 0 ? hour.totalDwell / hour.count : 0;
+            });
+
+            // Populate station filter dropdown (excluding stations with less than 10 dwells)
+            const stationFilter = document.getElementById('stationFilter');
+            stationFilter.innerHTML = '<option value="">All Stations</option>';
+            
+            const stations = Object.keys(stationStats)
+                .filter(station => stationStats[station].count >= 10)
+                .sort();
+            stations.forEach(station => {
+                const option = document.createElement('option');
+                option.value = station;
+                option.textContent = station;
+                stationFilter.appendChild(option);
+            });
+
+            // Populate run filter dropdown
+            const runFilter = document.getElementById('runFilter');
+            runFilter.innerHTML = '<option value="">All Runs</option>';
+            
+            // Extract unique runs and series
+            const runNumbers = new Set();
+            const runSeries = new Set();
+            
+            terminalDwells.forEach(dwell => {
+                const runNumber = dwell.runNumber;
+                if (runNumber) {
+                    runNumbers.add(runNumber);
+                    if (runNumber.length >= 3) {
+                        const series = runNumber.charAt(0) + 'XX';
+                        runSeries.add(series);
+                    }
+                }
+            });
+            
+            // Add series first (sorted)
+            Array.from(runSeries).sort().forEach(series => {
+                const option = document.createElement('option');
+                option.value = series;
+                option.textContent = series;
+                option.style.fontWeight = 'bold';
+                runFilter.appendChild(option);
+            });
+            
+            // Add separator
+            const separator = document.createElement('option');
+            separator.disabled = true;
+            separator.textContent = '────────────';
+            runFilter.appendChild(separator);
+            
+            // Add individual runs (sorted)
+            Array.from(runNumbers).sort().forEach(run => {
+                const option = document.createElement('option');
+                option.value = run;
+                option.textContent = run;
+                runFilter.appendChild(option);
+            });
+
+            return {
+                terminalDwells,
+                stationStats,
+                hourlyStats,
+                totalDwells: terminalDwells.length,
+                avgDwellTime: terminalDwells.length > 0 ? 
+                    terminalDwells.reduce((sum, d) => sum + d.dwellTime, 0) / terminalDwells.length : 0
+            };
+        }
+
+        function applyFilters() {
+            if (!rawAnalysisData) {
+                return;
+            }
+
+            const selectedStation = document.getElementById('stationFilter').value;
+            const selectedRun = document.getElementById('runFilter').value;
+
+            let filteredDwells = rawAnalysisData.terminalDwells;
+
+            if (selectedStation) {
+                filteredDwells = filteredDwells.filter(d => d.location === selectedStation);
+            }
+
+            if (selectedRun) {
+                if (selectedRun.endsWith('XX')) {
+                    // Filter by series
+                    const seriesPrefix = selectedRun.charAt(0);
+                    filteredDwells = filteredDwells.filter(d => {
+                        return d.runNumber && d.runNumber.charAt(0) === seriesPrefix;
+                    });
+                } else {
+                    // Filter by specific run
+                    filteredDwells = filteredDwells.filter(d => d.runNumber === selectedRun);
+                }
+            }
+
+            const stationStats = {};
+            const hourlyStats = Array.from({ length: 27 }, () => ({ count: 0, totalDwell: 0 }));
+
+            filteredDwells.forEach(dwell => {
+                if (!stationStats[dwell.location]) {
+                    stationStats[dwell.location] = { count: 0, totalDwell: 0, dwells: [] };
+                }
+                stationStats[dwell.location].count++;
+                stationStats[dwell.location].totalDwell += dwell.dwellTime;
+                stationStats[dwell.location].dwells.push(dwell.dwellTime);
+                
+                if (dwell.hour >= 0 && dwell.hour < 27) {
+                    hourlyStats[dwell.hour].count++;
+                    hourlyStats[dwell.hour].totalDwell += dwell.dwellTime;
+                }
+            });
+
+            Object.keys(stationStats).forEach(station => {
+                const stats = stationStats[station];
+                stats.avgDwell = stats.totalDwell / stats.count;
+                stats.dwells.sort((a, b) => a - b);
+                stats.minDwell = stats.dwells[0];
+                stats.maxDwell = stats.dwells[stats.dwells.length - 1];
+                stats.medianDwell = stats.dwells[Math.floor(stats.dwells.length / 2)];
+            });
+
+            hourlyStats.forEach(hour => {
+                hour.avgDwell = hour.count > 0 ? hour.totalDwell / hour.count : 0;
+            });
+
+            filteredAnalysisData = {
+                terminalDwells: filteredDwells,
+                stationStats,
+                hourlyStats,
+                totalDwells: filteredDwells.length,
+                avgDwellTime: filteredDwells.length > 0 ? 
+                    filteredDwells.reduce((sum, d) => sum + d.dwellTime, 0) / filteredDwells.length : 0
+            };
+
+            if (selectedStation || selectedRun) {
+                document.getElementById('filterStatus').style.display = 'inline';
+            } else {
+                document.getElementById('filterStatus').style.display = 'none';
+            }
+            
+            displayResults(filteredAnalysisData);
+        }
+
+        function clearFilters() {
+            document.getElementById('stationFilter').value = '';
+            document.getElementById('runFilter').value = '';
+            document.getElementById('filterStatus').style.display = 'none';
+            
+            if (rawAnalysisData) {
+                filteredAnalysisData = null;
+                displayResults(rawAnalysisData);
+            }
+        }
+
+        function displayResults(data) {
+            // Hide error message if showing results
+            document.getElementById('errorMessage').style.display = 'none';
+            
+            if (!data || data.totalDwells === 0) {
+                showError('No terminal dwells found in the selected data.');
+                return;
+            }
+
+            // Filter out stations with less than 10 dwells
+            const filteredStationStats = {};
+            Object.entries(data.stationStats).forEach(([station, stats]) => {
+                if (stats.count >= 10) {
+                    filteredStationStats[station] = stats;
+                }
+            });
+
+            const summaryHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${data.totalDwells}</div>
+                    <div class="stat-label">Total Terminal Dwells</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${formatDuration(Math.round(data.avgDwellTime))}</div>
+                    <div class="stat-label">Average Dwell Time</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${Object.keys(filteredStationStats).length}</div>
+                    <div class="stat-label">Terminal Stations</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${Math.round(data.totalDwells / 24)}</div>
+                    <div class="stat-label">Avg Dwells/Hour</div>
+                </div>
+            `;
+            document.getElementById('summaryStats').innerHTML = summaryHTML;
+
+            // All stations with 10+ dwells, sorted by avg dwell time
+            const sortedStations = Object.entries(filteredStationStats)
+                .sort(([,a], [,b]) => b.avgDwell - a.avgDwell);
+            
+            const terminalHTML = sortedStations.map(([station, stats]) => `
+                <div class="terminal-card">
+                    <h4>${station}</h4>
+                    <p><strong>Count:</strong> ${stats.count} dwells</p>
+                    <p><strong>Average:</strong> ${formatDuration(Math.round(stats.avgDwell))}</p>
+                    <p><strong>Range:</strong> ${formatDuration(stats.minDwell)} - ${formatDuration(stats.maxDwell)}</p>
+                    <p><strong>Median:</strong> ${formatDuration(stats.medianDwell)}</p>
+                </div>
+            `).join('');
+            document.getElementById('terminalDetails').innerHTML = terminalHTML;
+
+            createHourlyChart(data.hourlyStats);
+            createStationChart(sortedStations); // All stations with 10+ dwells
+
+            document.getElementById('results').style.display = 'block';
+        }
+
+        function createHourlyChart(hourlyStats) {
+            const ctx = document.getElementById('hourlyChart').getContext('2d');
+            
+            if (hourlyChart) {
+                hourlyChart.destroy();
+            }
+
+            // Find the range of hours with actual data
+            let firstHour = -1;
+            let lastHour = -1;
+            
+            for (let i = 0; i < hourlyStats.length; i++) {
+                if (hourlyStats[i].count > 0) {
+                    if (firstHour === -1) firstHour = i;
+                    lastHour = i;
+                }
+            }
+
+            // If no data, return
+            if (firstHour === -1) return;
+
+            // Create labels and data for the active range only
+            const activeHours = [];
+            const activeData = [];
+            
+            for (let i = firstHour; i <= lastHour; i++) {
+                activeHours.push(`${i.toString().padStart(2, '0')}:00`);
+                activeData.push(hourlyStats[i].avgDwell);
+            }
+
+            hourlyChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: activeHours,
+                    datasets: [{
+                        label: 'Average Dwell Time (seconds)',
+                        data: activeData,
+                        borderColor: '#1e88e5',
+                        backgroundColor: 'rgba(30, 136, 229, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Average Dwell Times Throughout the Day',
+                            color: '#ffffff'
+                        },
+                        legend: {
+                            labels: {
+                                color: '#ffffff'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#ffffff' },
+                            grid: { color: '#424242' }
+                        },
+                        y: {
+                            ticks: { color: '#ffffff' },
+                            grid: { color: '#424242' },
+                            title: {
+                                display: true,
+                                text: 'Average Dwell Time (seconds)',
+                                color: '#ffffff'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createStationChart(sortedStations) {
+            const ctx = document.getElementById('stationChart').getContext('2d');
+            
+            if (stationChart) {
+                stationChart.destroy();
+            }
+
+            stationChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedStations.map(([station]) => station),
+                    datasets: [{
+                        label: 'Average Dwell Time (seconds)',
+                        data: sortedStations.map(([, stats]) => stats.avgDwell),
+                        backgroundColor: '#1e88e5',
+                        borderColor: '#1565c0',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Stations by Average Dwell Time',
+                            color: '#ffffff'
+                        },
+                        legend: {
+                            labels: {
+                                color: '#ffffff'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { 
+                                color: '#ffffff',
+                                maxRotation: 45,
+                                minRotation: 45
+                            },
+                            grid: { color: '#424242' }
+                        },
+                        y: {
+                            ticks: { color: '#ffffff' },
+                            grid: { color: '#424242' },
+                            title: {
+                                display: true,
+                                text: 'Average Dwell Time (seconds)',
+                                color: '#ffffff'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorMessage').style.display = 'block';
+        }
+
+        // Initialize the application
+        window.onload = function() {
+            fetchTimetablePaths();
+        };
+
+        // Handle timetable selection change
+        document.getElementById('timetableSelector').addEventListener('change', function() {
+            if (this.value) {
+                analyzeData();
+            }
+        });
+
+        // Add event listeners for instant filter application
+        document.getElementById('stationFilter').addEventListener('change', applyFilters);
+        document.getElementById('runFilter').addEventListener('change', applyFilters);
+    </script>
+</body>
+</html>
