@@ -1,21 +1,9 @@
 Name: Weekdays
 Applies: 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'
-URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/241104mf-public.csv
+URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/250929mf-public.csv
 Name: Saturdays
 Applies: 'Saturday'
-URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/241109sa-public.csv
+URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/251018sa-public.csv
 Name: Sundays
 Applies: 'Sunday'
-URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/241110su-public.csv
-Name: Weekdays from 21/07
-Applies: 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday' from '2025-07-21'
-URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/250731mf-public.csv
-Name: Saturdays from 26/07
-Applies: 'Saturday' from '2025-07-26'
-URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/250809sa-public.csv
-Name: Sundays from 27/07
-Applies: 'Sunday' from '2025-07-27'
-URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/250810su-public.csv
-Name: Weekdays from 29/10
-Applies: 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday' from '2025-09-29'
-URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/250929mf-public.csv
+URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/251019su-public.csv
