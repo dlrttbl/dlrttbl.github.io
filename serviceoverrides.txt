@@ -86,4 +86,28 @@ Mapping: 5
 Applies: '2025-10-19'
 
 Mapping: 5
-Applies: '2025-10-30/2025-11-02'
+Applies: '2025-10-31/2025-11-02'
+
+Mapping: 5
+Applies: '2025-11-15/2025-11-15'
+
+Mapping: 5
+Applies: '2025-11-22/2025-11-23'
+
+Mapping: 5
+Applies: '2025-11-29/2025-11-30'
+
+Mapping: 5
+Applies: '2025-12-07'
+
+Mapping: 5
+Applies: '2025-12-13/2025-12-14'
+
+Mapping: 5
+Applies: '2025-12-21'
+
+Mapping: 1
+Applies: '2025-12-25'
+
+Mapping: 5
+Applies: '2025-12-26'
