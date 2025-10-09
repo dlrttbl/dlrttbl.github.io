@@ -4,3 +4,15 @@ Name: [ARCHIVED] 240203sa-public
 URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/archived%20timetables/240203sa-public.csv
 Name: [ARCHIVED] 240204su-public
 URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/archived%20timetables/240204su-public.csv
+Name: [ARCHIVED] 241104mf-public
+URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/241104mf-public.csv
+Name: [ARCHIVED] 241109sa-public
+URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/241109sa-public.csv
+Name: [ARCHIVED] 241110su-public
+URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/241110su-public.csv
+Name: [ARCHIVED] 250731mf-public
+URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/250731mf-public.csv
+Name: [ARCHIVED] 250809sa-public
+URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/250809sa-public.csv
+Name: [ARCHIVED] 250810su-public
+URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/250810su-public.csv
