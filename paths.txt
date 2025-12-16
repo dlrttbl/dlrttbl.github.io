@@ -7,4 +7,3 @@ URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main
 Name: Sundays
 Applies: 'Sunday'
 URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/251026su-public.csv
-
