@@ -2,8 +2,9 @@ Name: Weekdays
 Applies: 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'
 URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/250929mf-public.csv
 Name: Saturdays
-Applies: 'Saturday', '2025-12-10/2025-12-20'
+Applies: 'Saturday'
 URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/251018sa-public.csv
 Name: Sundays
 Applies: 'Sunday'
 URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/251026su-public.csv
+
