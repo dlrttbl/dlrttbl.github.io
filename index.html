@@ -512,7 +512,7 @@
 				let currentEntry = {};
 				const timetableEntries = [];
 				
-				// Parse the new format
+				// Parse the new format with support for multiple Applies lines
 				for (const line of lines) {
 					const trimmedLine = line.trim();
 					if (trimmedLine.startsWith('Name:')) {
@@ -520,10 +520,15 @@
 							timetableEntries.push({...currentEntry});
 						}
 						currentEntry = {
-							name: trimmedLine.substring(5).trim()
+							name: trimmedLine.substring(5).trim(),
+							applies: [] // Now an array to support multiple applies
 						};
 					} else if (trimmedLine.startsWith('Applies:')) {
-						currentEntry.applies = trimmedLine.substring(8).trim();
+						const appliesValue = trimmedLine.substring(8).trim();
+						if (!currentEntry.applies) {
+							currentEntry.applies = [];
+						}
+						currentEntry.applies.push(appliesValue);
 					} else if (trimmedLine.startsWith('URL:')) {
 						currentEntry.url = trimmedLine.substring(4).trim();
 						const fileName = currentEntry.url.substring(currentEntry.url.lastIndexOf('/') + 1, currentEntry.url.lastIndexOf('.'));
@@ -699,133 +704,225 @@
 		}				
 
 		function getDistanceToNextApplicability(entry, currentDate) {
-			const parsed = parseDateRange(entry.applies);
+			// Convert applies to array if it's a string
+			const entryApplies = Array.isArray(entry.applies) ? entry.applies : [entry.applies];
 			
-			switch (parsed.type) {
-				case 'singleDate':
-					if (currentDate <= parsed.date) {
-						return Math.abs(parsed.date - currentDate) / (1000 * 60 * 60 * 24);
-					}
-					return Infinity; // Past date
-					
-				case 'dateRange':
-					if (currentDate <= parsed.start) {
-						return Math.abs(parsed.start - currentDate) / (1000 * 60 * 60 * 24);
-					}
-					return Infinity; // Past date range
-					
-				case 'daysFrom':
-					if (currentDate < parsed.fromDate) {
-						return Math.abs(parsed.fromDate - currentDate) / (1000 * 60 * 60 * 24);
-					}
-					// If from date has passed, check next occurrence of the days
-					return getNextDayOccurrence(parsed.days, currentDate);
-					
-				case 'days':
-					return getNextDayOccurrence(parsed.days, currentDate);
-					
-				default:
-					return Infinity;
-			}
+			let minDistance = Infinity;
+			
+			entryApplies.forEach(appliesStr => {
+				const parsed = parseDateRange(appliesStr);
+				
+				let distance;
+				switch (parsed.type) {
+					case 'singleDate':
+						if (currentDate <= parsed.date) {
+							distance = Math.abs(parsed.date - currentDate) / (1000 * 60 * 60 * 24);
+						} else {
+							distance = Infinity;
+						}
+						break;
+						
+					case 'dateRange':
+						if (currentDate <= parsed.start) {
+							distance = Math.abs(parsed.start - currentDate) / (1000 * 60 * 60 * 24);
+						} else {
+							distance = Infinity;
+						}
+						break;
+						
+					case 'daysFrom':
+						if (currentDate < parsed.fromDate) {
+							distance = Math.abs(parsed.fromDate - currentDate) / (1000 * 60 * 60 * 24);
+						} else {
+							distance = getNextDayOccurrence(parsed.days, currentDate);
+						}
+						break;
+						
+					case 'days':
+						distance = getNextDayOccurrence(parsed.days, currentDate);
+						break;
+						
+					default:
+						distance = Infinity;
+				}
+				
+				minDistance = Math.min(minDistance, distance);
+			});
+			
+			return minDistance;
 		}
 
 		function isObsolete(entry, allEntries, currentDate) {
-			const parsed = parseDateRange(entry.applies);
+			// Convert applies to array if it's a string
+			const entryApplies = Array.isArray(entry.applies) ? entry.applies : [entry.applies];
 			
-			switch (parsed.type) {
-				case 'daysFrom':
-					// Check if there's a newer timetable for the same days that has kicked in
-					const sameDayEntries = allEntries.filter(otherEntry => {
-						if (otherEntry === entry) return false;
+			// Parse all applies for this entry
+			const entryParsedList = [];
+			entryApplies.forEach(appliesStr => {
+				if (appliesStr.includes(' from ')) {
+					entryParsedList.push(parseDateRange(appliesStr));
+				} else {
+					const ranges = appliesStr.split(',').map(r => r.trim().replace(/['"]/g, ''));
+					ranges.forEach(range => {
+						entryParsedList.push(parseDateRange(range));
+					});
+				}
+			});
+			
+			// Check each parsed condition
+			for (const parsed of entryParsedList) {
+				switch (parsed.type) {
+					case 'daysFrom':
+						// Check if there's a newer timetable for the same days that has kicked in
+						const sameDayEntries = allEntries.filter(otherEntry => {
+							if (otherEntry === entry) return false;
+							
+							const otherApplies = Array.isArray(otherEntry.applies) ? otherEntry.applies : [otherEntry.applies];
+							return otherApplies.some(appliesStr => {
+								const otherParsed = parseDateRange(appliesStr);
+								if (otherParsed.type === 'daysFrom') {
+									const thisDays = parsed.days.sort();
+									const otherDays = otherParsed.days.sort();
+									return JSON.stringify(thisDays) === JSON.stringify(otherDays);
+								}
+								return false;
+							});
+						});
 						
-						const otherParsed = parseDateRange(otherEntry.applies);
-						if (otherParsed.type === 'daysFrom') {
-							// Check if they cover the same days
-							const thisDays = parsed.days.sort();
-							const otherDays = otherParsed.days.sort();
-							return JSON.stringify(thisDays) === JSON.stringify(otherDays);
-						}
-						return false;
-					});
-					
-					// Check if any newer timetable for the same days has kicked in
-					return sameDayEntries.some(otherEntry => {
-						const otherParsed = parseDateRange(otherEntry.applies);
-						return otherParsed.fromDate > parsed.fromDate && 
-							   currentDate >= otherParsed.fromDate;
-					});
-					
-				case 'days':
-					// Check if there's a "daysFrom" timetable for the same days that has kicked in
-					const dayFromEntries = allEntries.filter(otherEntry => {
-						if (otherEntry === entry) return false;
+						const isObsoleteByNewer = sameDayEntries.some(otherEntry => {
+							const otherApplies = Array.isArray(otherEntry.applies) ? otherEntry.applies : [otherEntry.applies];
+							return otherApplies.some(appliesStr => {
+								const otherParsed = parseDateRange(appliesStr);
+								return otherParsed.type === 'daysFrom' && 
+									   otherParsed.fromDate > parsed.fromDate && 
+									   currentDate >= otherParsed.fromDate;
+							});
+						});
 						
-						const otherParsed = parseDateRange(otherEntry.applies);
-						if (otherParsed.type === 'daysFrom') {
-							const thisDays = parsed.days.sort();
-							const otherDays = otherParsed.days.sort();
-							return JSON.stringify(thisDays) === JSON.stringify(otherDays);
+						if (isObsoleteByNewer) return true;
+						break;
+						
+					case 'days':
+						// Check if there's a "daysFrom" timetable for the same days that has kicked in
+						const dayFromEntries = allEntries.filter(otherEntry => {
+							if (otherEntry === entry) return false;
+							
+							const otherApplies = Array.isArray(otherEntry.applies) ? otherEntry.applies : [otherEntry.applies];
+							return otherApplies.some(appliesStr => {
+								const otherParsed = parseDateRange(appliesStr);
+								if (otherParsed.type === 'daysFrom') {
+									const thisDays = parsed.days.sort();
+									const otherDays = otherParsed.days.sort();
+									return JSON.stringify(thisDays) === JSON.stringify(otherDays);
+								}
+								return false;
+							});
+						});
+						
+						const isObsoleteByDaysFrom = dayFromEntries.some(otherEntry => {
+							const otherApplies = Array.isArray(otherEntry.applies) ? otherEntry.applies : [otherEntry.applies];
+							return otherApplies.some(appliesStr => {
+								const otherParsed = parseDateRange(appliesStr);
+								return otherParsed.type === 'daysFrom' && currentDate >= otherParsed.fromDate;
+							});
+						});
+						
+						if (isObsoleteByDaysFrom) return true;
+						break;
+						
+					case 'singleDate':
+						if (currentDate > parsed.date) {
+							return true;
 						}
-						return false;
-					});
-					
-					return dayFromEntries.some(otherEntry => {
-						const otherParsed = parseDateRange(otherEntry.applies);
-						return currentDate >= otherParsed.fromDate;
-					});
-					
-				case 'singleDate':
-				case 'dateRange':
-					// These are obsolete if their date(s) have passed
-					if (parsed.type === 'singleDate') {
-						return currentDate > parsed.date;
-					} else {
-						return currentDate > parsed.end;
-					}
-					
-				default:
-					return false;
+						break;
+						
+					case 'dateRange':
+						if (currentDate > parsed.end) {
+							return true;
+						}
+						break;
+				}
 			}
+			
+			return false;
 		}
 
-		function isDateInRange(date, rangeStr) {
+		function isDateInRange(date, appliesArray) {
 			const compareDate = new Date(date);
 			compareDate.setHours(0, 0, 0, 0);
 			
-			// If the string contains " from ", treat it as a single "daysFrom" range
-			if (rangeStr.includes(' from ')) {
-				const parsed = parseDateRange(rangeStr);
-				
-				if (parsed.type === 'daysFrom') {
-					if (compareDate >= parsed.fromDate) {
-						const dayName = getDayName(date);
-						return parsed.days.includes(dayName);
+			// Priority order: singleDate > dateRange > daysFrom > days
+			const priorities = ['singleDate', 'dateRange', 'daysFrom', 'days'];
+			
+			// Group applies by type
+			const appliesByType = {
+				singleDate: [],
+				dateRange: [],
+				daysFrom: [],
+				days: []
+			};
+			
+			// If appliesArray is a string (old format), convert to array
+			if (typeof appliesArray === 'string') {
+				appliesArray = [appliesArray];
+			}
+			
+			// Parse and categorize all applies
+			appliesArray.forEach(rangeStr => {
+				// Handle "from" syntax as a single entity
+				if (rangeStr.includes(' from ')) {
+					const parsed = parseDateRange(rangeStr);
+					if (parsed.type === 'daysFrom') {
+						appliesByType.daysFrom.push(parsed);
 					}
-					return false;
+					return;
+				}
+				
+				// Split by comma for other formats
+				const ranges = rangeStr.split(',').map(r => r.trim().replace(/['"]/g, ''));
+				
+				ranges.forEach(range => {
+					const parsed = parseDateRange(range);
+					appliesByType[parsed.type].push(parsed);
+				});
+			});
+			
+			// Check each type in priority order
+			for (const type of priorities) {
+				for (const parsed of appliesByType[type]) {
+					switch (type) {
+						case 'days':
+							const dayName = getDayName(date);
+							if (parsed.days.includes(dayName)) {
+								return true;
+							}
+							break;
+							
+						case 'singleDate':
+							if (+compareDate === +parsed.date) {
+								return true;
+							}
+							break;
+							
+						case 'dateRange':
+							if (compareDate >= parsed.start && compareDate <= parsed.end) {
+								return true;
+							}
+							break;
+							
+						case 'daysFrom':
+							if (compareDate >= parsed.fromDate) {
+								const dayName = getDayName(date);
+								if (parsed.days.includes(dayName)) {
+									return true;
+								}
+							}
+							break;
+					}
 				}
 			}
 			
-			// Otherwise, split by comma and check each range
-			const ranges = rangeStr.split(',').map(r => r.trim().replace(/['"]/g, ''));
-			
-			return ranges.some(range => {
-				const parsed = parseDateRange(range);
-				
-				switch (parsed.type) {
-					case 'days':
-						const dayName = getDayName(date);
-						return parsed.days.includes(dayName);
-						
-					case 'singleDate':
-						return +compareDate === +parsed.date;
-						
-					case 'dateRange':
-						return compareDate >= parsed.start && parsedfate <= parsed.end;
-						
-					default:
-						return false;
-				}
-			});
+			return false;
 		}
         
 		function sortTimetablesByApplicability(entries) {
@@ -838,20 +935,40 @@
 				const aAppliesNow = isDateInRange(operatingDate, a.applies);
 				const bAppliesNow = isDateInRange(operatingDate, b.applies);
 				
-				// If both apply now, prioritize specific dates over day-of-week rules
+				// If both apply now, prioritize by type
 				if (aAppliesNow && bAppliesNow) {
-					const aParsed = parseDateRange(a.applies);
-					const bParsed = parseDateRange(b.applies);
+					// Convert applies to arrays
+					const aAppliesArray = Array.isArray(a.applies) ? a.applies : [a.applies];
+					const bAppliesArray = Array.isArray(b.applies) ? b.applies : [b.applies];
 					
-					// Specific dates trump everything
-					if ((aParsed.type === 'singleDate' || aParsed.type === 'dateRange') && 
-						(bParsed.type === 'days' || bParsed.type === 'daysFrom')) {
-						return -1;
-					}
-					if ((bParsed.type === 'singleDate' || bParsed.type === 'dateRange') && 
-						(aParsed.type === 'days' || aParsed.type === 'daysFrom')) {
-						return 1;
-					}
+					// Check what types each entry has
+					const aHasSpecific = aAppliesArray.some(appliesStr => {
+						// Check for single date (YYYY-MM-DD format)
+						if (/^\d{4}-\d{2}-\d{2}$/.test(appliesStr.replace(/['"]/g, '').trim())) {
+							return true;
+						}
+						// Check for date range (has /)
+						if (appliesStr.includes('/')) {
+							return true;
+						}
+						return false;
+					});
+					
+					const bHasSpecific = bAppliesArray.some(appliesStr => {
+						// Check for single date (YYYY-MM-DD format)
+						if (/^\d{4}-\d{2}-\d{2}$/.test(appliesStr.replace(/['"]/g, '').trim())) {
+							return true;
+						}
+						// Check for date range (has /)
+						if (appliesStr.includes('/')) {
+							return true;
+						}
+						return false;
+					});
+					
+					// Specific dates/ranges trump day-of-week rules
+					if (aHasSpecific && !bHasSpecific) return -1;
+					if (!aHasSpecific && bHasSpecific) return 1;
 				}
 				
 				// Timetables that apply today come first
