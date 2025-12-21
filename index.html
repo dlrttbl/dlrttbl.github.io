@@ -930,6 +930,11 @@
 			
 			// Filter out obsolete entries
 			const activeEntries = entries.filter(entry => !isObsolete(entry, entries, operatingDate));
+			console.log('Timetable entries:', activeEntries.map(e => ({
+			    name: e.name, 
+			    applies: e.applies,
+			    appliesNow: isDateInRange(operatingDate, e.applies)
+			})));
 			
 			return activeEntries.sort((a, b) => {
 				const aAppliesNow = isDateInRange(operatingDate, a.applies);
@@ -1974,3 +1979,4 @@
 	<!-- End Cloudflare Web Analytics -->
 </body>
 </html>
+
