@@ -104,7 +104,7 @@ Mapping: 5
 Applies: '2025-12-13/2025-12-14'
 
 Mapping: 5
-Applies: '2025-12-21'
+Applies: '2025-12-20'
 
 Text1: 'Infomation'
 Text2: 'A Saturday service is in operation today.'
@@ -126,3 +126,4 @@ Text1: 'Infomation'
 Text2: 'A Saturday service is in operation today.'
 Text3: 'The standard Saturday timetable has been loaded, but this may be incorrect. Exercise caution.' 
 Applies: '2026-01-02'
+
