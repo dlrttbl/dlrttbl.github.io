@@ -403,14 +403,18 @@
 							type: 'mapping',
 							mapping: parseInt(trimmedLine.substring(8).trim(), 10)
 						};
-					} else if (trimmedLine.startsWith('Text:')) {
+					} else if (trimmedLine.startsWith('Text1:')) {
 						if (Object.keys(currentEntry).length > 0) {
 							serviceOverrides.push({...currentEntry});
 						}
 						currentEntry = {
 							type: 'text',
-							text: trimmedLine.substring(5).trim().replace(/^['"]|['"]$/g, '')
+							text1: trimmedLine.substring(6).trim().replace(/^['"]|['"]$/g, '')
 						};
+					} else if (trimmedLine.startsWith('Text2:')) {
+						currentEntry.text2 = trimmedLine.substring(6).trim().replace(/^['"]|['"]$/g, '');
+					} else if (trimmedLine.startsWith('Text3:')) {
+						currentEntry.text3 = trimmedLine.substring(6).trim().replace(/^['"]|['"]$/g, '');
 					} else if (trimmedLine.startsWith('Applies:')) {
 						currentEntry.applies = trimmedLine.substring(8).trim().replace(/['"]/g, '');
 					}
@@ -448,9 +452,15 @@
 				
 				// Check if we have a custom text override
 				if (applicableOverride && applicableOverride.type === 'text') {
-					const warningContent = document.getElementById('warningContent');
+					// Update the header
+					document.querySelector('#warningSection h2').textContent = applicableOverride.text1 || 'Warning';
 					
-					warningContent.innerHTML = applicableOverride.text + ' <br>As a result the information on this page is likely to be incorrect.';
+					const warningContent = document.getElementById('warningContent');
+					let message = applicableOverride.text2 || '';
+					if (applicableOverride.text3) {
+						message += '<br>' + applicableOverride.text3;
+					}
+					warningContent.innerHTML = message;
 					
 					document.getElementById('warningSection').style.display = 'block';
 					return;
@@ -479,8 +489,11 @@
 					)[0];
 					
 					const statusInfo = STATUS_MAPPINGS[mostSevereStatus.statusSeverity];
-					const warningContent = document.getElementById('warningContent');
 					
+					// Reset header to default
+					document.querySelector('#warningSection h2').textContent = 'Warning';
+					
+					const warningContent = document.getElementById('warningContent');
 					warningContent.innerHTML = `TfL is currently reporting ${statusInfo.suffix.replace(statusInfo.name, `<span style="color: ${statusInfo.color}">${statusInfo.name}</span>`)} <br>As a result the information on this page is likely to be incorrect.`;
 					
 					document.getElementById('warningSection').style.display = 'block';
