@@ -106,8 +106,23 @@ Applies: '2025-12-13/2025-12-14'
 Mapping: 5
 Applies: '2025-12-21'
 
+Text1: 'Infomation'
+Text2: 'A Saturday service is in operation today.'
+Text3: 'The standard Saturday timetable has been loaded, but this may be incorrect. Exercise caution.' 
+Applies: '2025-12-21/2025-12-31'
+
 Mapping: 1
 Applies: '2025-12-25'
 
 Mapping: 5
 Applies: '2025-12-26'
+
+Text1: 'Infomation'
+Text2: 'A Sunday service is in operation today.'
+Text3: 'The standard Sunday timetable has been loaded, but this may be incorrect. Exercise caution.' 
+Applies: '2026-01-02'
+
+Text1: 'Infomation'
+Text2: 'A Saturday service is in operation today.'
+Text3: 'The standard Saturday timetable has been loaded, but this may be incorrect. Exercise caution.' 
+Applies: '2026-01-02'
