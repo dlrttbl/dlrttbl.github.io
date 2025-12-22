@@ -2894,9 +2894,23 @@
 			});
 			
 			// Sort results by time
-			return results.sort((a, b) => {
+			const sorted = results.sort((a, b) => {
 				return parseTimeTodaySeconds(a.arrivalTime) - parseTimeTodaySeconds(b.arrivalTime);
 			});
+
+			// Deduplicate: remove entries with same run, arrival, and departure times
+			const deduplicated = [];
+			const seen = new Set();
+
+			sorted.forEach(result => {
+				const key = `${result.runNumber}-${result.arrivalTime}-${result.departureTime}`;
+				if (!seen.has(key)) {
+					seen.add(key);
+					deduplicated.push(result);
+				}
+			});
+
+			return deduplicated;
 		}
         
         function parseTimeTodaySeconds(timeStr) {
