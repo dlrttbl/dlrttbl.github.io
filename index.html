@@ -303,24 +303,24 @@
 	<div id="warningSection">
 		<h2>Warning</h2>
 		<div id="warningContent"></div>
-		<a href="#" id="proceedLink" onclick="showTrainRuns(); return false;" style="display: none;">Proceed with caution.</a>
 	</div>
     <div id="trainRunList">
         <h2>Train Run Numbers</h2>
         <div class="grid-container" id="runNumberList" style="margin-top: 10px; margin-bottom: 10px;"></div>
     </div>
-    <div id="trainDetails">
-        <div class="header-container">
-            <div class="subheader-container">
-                <h3 id="currentRun"></h3>
-            </div>
-            <div class="navigation-container">
-                <h3 id="tripDetailsHeader"></h3>
-                <div class="button-group" id="navigationButtons"></div>
-            </div>
-        </div>
-        <div style="margin-bottom: 5px;" id="detailsOutput">Select a run to view info, or switch to <a href="/search" style="color: #1e88e5; text-decoration: none;">search by location</a></div>
-    </div>
+	<div id="trainDetails" style="position: relative;">
+		<span onclick="clearRunSelection(); updateURLHash();" style="position: absolute; top: 10px; right: 10px; cursor: pointer; font-size: 1.5em; color: #ffffff; z-index: 10;">×</span>
+		<div class="header-container">
+			<div class="subheader-container">
+				<h3 id="currentRun"></h3>
+			</div>
+			<div class="navigation-container">
+				<h3 id="tripDetailsHeader"></h3>
+				<div class="button-group" id="navigationButtons"></div>
+			</div>
+		</div>
+		<div style="margin-bottom: 5px;" id="detailsOutput">Select a run to view info, or switch to <a href="/search" style="color: #1e88e5; text-decoration: none;">search by location</a></div>
+	</div>
 
 	<style>
 	@keyframes gradientCycle {
@@ -390,7 +390,6 @@
 				const operatingDate = getOperatingDate();
 				
 				// Process service overrides
-				let overrideStatus = null;
 				let currentEntry = {};
 				const serviceOverrides = [];
 				
@@ -401,7 +400,16 @@
 							serviceOverrides.push({...currentEntry});
 						}
 						currentEntry = {
+							type: 'mapping',
 							mapping: parseInt(trimmedLine.substring(8).trim(), 10)
+						};
+					} else if (trimmedLine.startsWith('Text:')) {
+						if (Object.keys(currentEntry).length > 0) {
+							serviceOverrides.push({...currentEntry});
+						}
+						currentEntry = {
+							type: 'text',
+							text: trimmedLine.substring(5).trim().replace(/^['"]|['"]$/g, '')
 						};
 					} else if (trimmedLine.startsWith('Applies:')) {
 						currentEntry.applies = trimmedLine.substring(8).trim().replace(/['"]/g, '');
@@ -438,13 +446,23 @@
 					});
 				});
 				
+				// Check if we have a custom text override
+				if (applicableOverride && applicableOverride.type === 'text') {
+					const warningContent = document.getElementById('warningContent');
+					
+					warningContent.innerHTML = applicableOverride.text + ' <br>As a result the information on this page is likely to be incorrect.';
+					
+					document.getElementById('warningSection').style.display = 'block';
+					return;
+				}
+				
 				// Fetch TfL status
 				const response = await fetch('https://api.tfl.gov.uk/Line/dlr/Status');
 				const data = await response.json();
 				const statuses = data[0].lineStatuses;
 				
-				// Use the override status if one is found, otherwise use the TfL API status
-				const statusToUse = applicableOverride !== undefined 
+				// Use the mapping override if one is found, otherwise use the TfL API status
+				const statusToUse = (applicableOverride && applicableOverride.type === 'mapping')
 					? [{ statusSeverity: applicableOverride.mapping }] 
 					: statuses;
 				
@@ -462,34 +480,14 @@
 					
 					const statusInfo = STATUS_MAPPINGS[mostSevereStatus.statusSeverity];
 					const warningContent = document.getElementById('warningContent');
-					const proceedLink = document.getElementById('proceedLink');
 					
-					warningContent.innerHTML = `TfL is currently reporting ${statusInfo.suffix.replace(statusInfo.name, `<span style="color: ${statusInfo.color}">${statusInfo.name}</span>`)} <br>As a result the information on this page is likely to be incorrect. `;
+					warningContent.innerHTML = `TfL is currently reporting ${statusInfo.suffix.replace(statusInfo.name, `<span style="color: ${statusInfo.color}">${statusInfo.name}</span>`)} <br>As a result the information on this page is likely to be incorrect.`;
 					
 					document.getElementById('warningSection').style.display = 'block';
-					
-					// Handle direct URLs
-					const hash = window.location.hash;
-					if (hash.includes('run=')) {
-						proceedLink.style.display = 'none';
-						document.getElementById('trainRunList').style.display = 'block';
-						document.getElementById('trainDetails').style.display = 'block';
-					} else {
-						proceedLink.style.display = 'inline';
-						warningContent.appendChild(proceedLink);
-						document.getElementById('trainRunList').style.display = 'none';
-						document.getElementById('trainDetails').style.display = 'none';
-					}
 				}
 			} catch (error) {
 				console.error('Error checking TfL status:', error);
 			}
-		}
-
-		function showTrainRuns() {
-			document.getElementById('trainRunList').style.display = 'block';
-			document.getElementById('trainDetails').style.display = 'block';
-			document.getElementById('proceedLink').style.display = 'none';
 		}
 	
         let currentRunData = null;
@@ -1660,13 +1658,19 @@
 			filterTable(); // Re-run filter to show all rows
 		}
 
-        function displayDetails(runNumber, data) {
-            currentRunData = data;
-            showingAllTimings = false;
-            selectedTrip = null;
-            document.getElementById('currentRun').textContent = `Run ${runNumber}`;
-            displayCurrentData();
-        }
+		function displayDetails(runNumber, data) {
+			currentRunData = data;
+			showingAllTimings = false;
+			selectedTrip = null;
+			document.getElementById('currentRun').textContent = `Run ${runNumber}`;
+			displayCurrentData();
+			
+			// Show the X button when a run is selected
+			const xButton = document.querySelector('#trainDetails > span');
+			if (xButton) {
+				xButton.style.display = 'inline';
+			}
+		}
 
 		function createStopsTable(stops, params) {
 			// Handle different parameter formats
@@ -1949,13 +1953,19 @@
             window.location.hash = hash;
         }
 
-        function clearRunSelection() {
-            currentRunData = null;
-            selectedTrip = null;
-            document.getElementById('currentRun').textContent = '';
-            document.getElementById('detailsOutput').innerHTML = 'Select a run to view info, or switch to <a href="/search" style="color: #1e88e5; text-decoration: none;">search by location</a>';
-            updateNavigationButtons();
-        }
+		function clearRunSelection() {
+			currentRunData = null;
+			selectedTrip = null;
+			document.getElementById('currentRun').textContent = '';
+			document.getElementById('detailsOutput').innerHTML = 'Select a run to view info, or switch to <a href="/search" style="color: #1e88e5; text-decoration: none;">search by location</a>';
+			updateNavigationButtons();
+			
+			// Hide the X button when no run is selected
+			const xButton = document.querySelector('#trainDetails > span');
+			if (xButton) {
+				xButton.style.display = 'none';
+			}
+		}
     </script>
 	<!-- Cloudflare Web Analytics -->
 	<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "6ec8bf35000f40d799d9a15923996b0f"}'></script>

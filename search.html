@@ -407,10 +407,9 @@
     <div id="warningSection">
         <h2>Warning</h2>
         <div id="warningContent"></div>
-        <a href="#" id="proceedLink" onclick="showSearchInterface(); return false;" style="display: none;">Proceed with caution.</a>
     </div>
     
-    <div id="searchSection" style="display: none;">
+    <div id="searchSection">
         <h2>Search Train Services</h2>
         <form id="searchForm" onsubmit="performSearch(); return false;">
             <div class="search-field">
@@ -438,7 +437,8 @@
         </form>
     </div>
     
-	<div id="searchResults" style="display: none;">
+	<div id="searchResults" style="position: relative;">
+		<span onclick="clearSearchAndGoToTimetable();" style="position: absolute; top: 10px; right: 10px; cursor: pointer; font-size: 1.5em; color: #ffffff; z-index: 10; display: none;">×</span>
 		Enter your search, or switch to <a href="/" style="color: #1e88e5; text-decoration: none;">search by run number</a>.
 	</div>
 
@@ -539,123 +539,116 @@
         let allTripsData = []; // Will hold all trips across all runs
         let searchResults = []; // Will hold search results
 
-        async function checkTfLStatus() {
-            try {
-                // Fetch service overrides
-                const overrideResponse = await fetch('https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/serviceoverrides.txt', { cache: 'no-store' });
-                const overrideText = await overrideResponse.text();
-                const overrideLines = overrideText.split('\n').filter(line => line.trim() !== '');
-                
-                // Get current operating date
-                const operatingDate = getOperatingDate();
-                
-                // Process service overrides
-                let overrideStatus = null;
-                let currentEntry = {};
-                const serviceOverrides = [];
-                
-                for (const line of overrideLines) {
-                    const trimmedLine = line.trim();
-                    if (trimmedLine.startsWith('Mapping:')) {
-                        if (Object.keys(currentEntry).length > 0) {
-                            serviceOverrides.push({...currentEntry});
-                        }
-                        currentEntry = {
-                            mapping: parseInt(trimmedLine.substring(8).trim(), 10)
-                        };
-                    } else if (trimmedLine.startsWith('Applies:')) {
-                        currentEntry.applies = trimmedLine.substring(8).trim().replace(/['"]/g, '');
-                    }
-                }
-                
-                // Add the last entry
-                if (Object.keys(currentEntry).length > 0) {
-                    serviceOverrides.push(currentEntry);
-                }
-                
-                // Find applicable override
-                const applicableOverride = serviceOverrides.find(entry => {
-                    const ranges = entry.applies.split(',').map(r => r.trim());
-                    return ranges.some(range => {
-                        // Handle single date or date range
-                        if (range.includes('/')) {
-                            const [start, end] = range.split('/').map(d => {
-                                const newDate = new Date(d.trim());
-                                newDate.setHours(0, 0, 0, 0);
-                                return newDate;
-                            });
-                            const compareDate = new Date(operatingDate);
-                            compareDate.setHours(0, 0, 0, 0);
-                            return compareDate >= start && compareDate <= end;
-                        } else {
-                            // Single date
-                            const date = new Date(range);
-                            date.setHours(0, 0, 0, 0);
-                            const compareDate = new Date(operatingDate);
-                            compareDate.setHours(0, 0, 0, 0);
-                            return +compareDate === +date;
-                        }
-                    });
-                });
-                
-                // Fetch TfL status
-                const response = await fetch('https://api.tfl.gov.uk/Line/dlr/Status');
-                const data = await response.json();
-                const statuses = data[0].lineStatuses;
-                
-                // Use the override status if one is found, otherwise use the TfL API status
-                const statusToUse = applicableOverride !== undefined 
-                    ? [{ statusSeverity: applicableOverride.mapping }] 
-                    : statuses;
-                
-                // Filter only the statuses that are in both our warning triggers AND our mappings
-                const warningStatuses = statusToUse.filter(status => 
-                    WARNING_TRIGGERS.includes(status.statusSeverity) && 
-                    STATUS_MAPPINGS[status.statusSeverity]
-                );
-                
-                if (warningStatuses.length > 0) {
-                    // Sort by severity (lower number = more severe)
-                    const mostSevereStatus = warningStatuses.sort((a, b) => 
-                        a.statusSeverity - b.statusSeverity
-                    )[0];
-                    
-                    const statusInfo = STATUS_MAPPINGS[mostSevereStatus.statusSeverity];
-                    const warningContent = document.getElementById('warningContent');
-                    const proceedLink = document.getElementById('proceedLink');
-                    
-                    warningContent.innerHTML = `TfL is currently reporting ${statusInfo.suffix.replace(statusInfo.name, `<span style="color: ${statusInfo.color}">${statusInfo.name}</span>`)} <br>As a result the information on this page is likely to be incorrect. `;
-                    
-                    document.getElementById('warningSection').style.display = 'block';
-                    
-                    // Handle direct URLs
-                    const hash = window.location.hash;
-                    if (hash) {
-                        proceedLink.style.display = 'none';
-                        document.getElementById('searchSection').style.display = 'block';
-                        document.getElementById('searchResults').style.display = 'block';
-                    } else {
-                        proceedLink.style.display = 'inline';
-                        warningContent.appendChild(proceedLink);
-                        document.getElementById('searchSection').style.display = 'none';
-                        document.getElementById('searchResults').style.display = 'none';
-                    }
-                } else {
-                    // If no warnings, show search interface
-                    showSearchInterface();
-                }
-            } catch (error) {
-                console.error('Error checking TfL status:', error);
-                // If error, show search interface anyway
-                showSearchInterface();
-            }
-        }
-
-        function showSearchInterface() {
-            document.getElementById('searchSection').style.display = 'block';
-            document.getElementById('searchResults').style.display = 'block';
-            document.getElementById('proceedLink').style.display = 'none';
-        }
+		async function checkTfLStatus() {
+			try {
+				// Fetch service overrides
+				const overrideResponse = await fetch('https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/serviceoverrides.txt', { cache: 'no-store' });
+				const overrideText = await overrideResponse.text();
+				const overrideLines = overrideText.split('\n').filter(line => line.trim() !== '');
+				
+				// Get current operating date
+				const operatingDate = getOperatingDate();
+				
+				// Process service overrides
+				let currentEntry = {};
+				const serviceOverrides = [];
+				
+				for (const line of overrideLines) {
+					const trimmedLine = line.trim();
+					if (trimmedLine.startsWith('Mapping:')) {
+						if (Object.keys(currentEntry).length > 0) {
+							serviceOverrides.push({...currentEntry});
+						}
+						currentEntry = {
+							type: 'mapping',
+							mapping: parseInt(trimmedLine.substring(8).trim(), 10)
+						};
+					} else if (trimmedLine.startsWith('Text:')) {
+						if (Object.keys(currentEntry).length > 0) {
+							serviceOverrides.push({...currentEntry});
+						}
+						currentEntry = {
+							type: 'text',
+							text: trimmedLine.substring(5).trim().replace(/^['"]|['"]$/g, '')
+						};
+					} else if (trimmedLine.startsWith('Applies:')) {
+						currentEntry.applies = trimmedLine.substring(8).trim().replace(/['"]/g, '');
+					}
+				}
+				
+				// Add the last entry
+				if (Object.keys(currentEntry).length > 0) {
+					serviceOverrides.push(currentEntry);
+				}
+				
+				// Find applicable override
+				const applicableOverride = serviceOverrides.find(entry => {
+					const ranges = entry.applies.split(',').map(r => r.trim());
+					return ranges.some(range => {
+						// Handle single date or date range
+						if (range.includes('/')) {
+							const [start, end] = range.split('/').map(d => {
+								const newDate = new Date(d.trim());
+								newDate.setHours(0, 0, 0, 0);
+								return newDate;
+							});
+							const compareDate = new Date(operatingDate);
+							compareDate.setHours(0, 0, 0, 0);
+							return compareDate >= start && compareDate <= end;
+						} else {
+							// Single date
+							const date = new Date(range);
+							date.setHours(0, 0, 0, 0);
+							const compareDate = new Date(operatingDate);
+							compareDate.setHours(0, 0, 0, 0);
+							return +compareDate === +date;
+						}
+					});
+				});
+				
+				// Check if we have a custom text override
+				if (applicableOverride && applicableOverride.type === 'text') {
+					const warningContent = document.getElementById('warningContent');
+					
+					warningContent.innerHTML = applicableOverride.text + ' <br>As a result the information on this page is likely to be incorrect.';
+					
+					document.getElementById('warningSection').style.display = 'block';
+					return;
+				}
+				
+				// Fetch TfL status
+				const response = await fetch('https://api.tfl.gov.uk/Line/dlr/Status');
+				const data = await response.json();
+				const statuses = data[0].lineStatuses;
+				
+				// Use the mapping override if one is found, otherwise use the TfL API status
+				const statusToUse = (applicableOverride && applicableOverride.type === 'mapping')
+					? [{ statusSeverity: applicableOverride.mapping }] 
+					: statuses;
+				
+				// Filter only the statuses that are in both our warning triggers AND our mappings
+				const warningStatuses = statusToUse.filter(status => 
+					WARNING_TRIGGERS.includes(status.statusSeverity) && 
+					STATUS_MAPPINGS[status.statusSeverity]
+				);
+				
+				if (warningStatuses.length > 0) {
+					// Sort by severity (lower number = more severe)
+					const mostSevereStatus = warningStatuses.sort((a, b) => 
+						a.statusSeverity - b.statusSeverity
+					)[0];
+					
+					const statusInfo = STATUS_MAPPINGS[mostSevereStatus.statusSeverity];
+					const warningContent = document.getElementById('warningContent');
+					
+					warningContent.innerHTML = `TfL is currently reporting ${statusInfo.suffix.replace(statusInfo.name, `<span style="color: ${statusInfo.color}">${statusInfo.name}</span>`)} <br>As a result the information on this page is likely to be incorrect.`;
+					
+					document.getElementById('warningSection').style.display = 'block';
+				}
+			} catch (error) {
+				console.error('Error checking TfL status:', error);
+			}
+		}
     
         function toggleAboutSection() {
             const aboutText = document.getElementById('aboutText');
@@ -1556,6 +1549,25 @@
             document.getElementById('timeInput').value = '';
             document.getElementById('callingAtInput').value = '';
         }
+		
+		function clearSearchAndGoToTimetable() {
+			const timetable = document.getElementById('daySelector').value;
+			window.location.hash = `#timetable=${timetable}`;
+			
+			// Clear the search inputs
+			document.getElementById('locationInput').value = '';
+			document.getElementById('timeInput').value = '';
+			document.getElementById('callingAtInput').value = '';
+			
+			// Reset the results display
+			document.getElementById('searchResults').innerHTML = '<span onclick="clearSearchAndGoToTimetable();" style="position: absolute; top: 10px; right: 10px; cursor: pointer; font-size: 1.5em; color: #ffffff; z-index: 10; display: none;">×</span>Enter your search, or switch to <a href="/" style="color: #1e88e5; text-decoration: none;">search by run number</a>.';
+			
+			// Hide the X button
+			const xButton = document.querySelector('#searchResults > span');
+			if (xButton) {
+				xButton.style.display = 'none';
+			}
+		}		
 
 		async function processCSV() {
 			let csvText = '';
@@ -2879,9 +2891,16 @@
             return hours * 3600 + minutes * 60 + seconds;
         }
         
-        function displaySearchResults(results, locationDisplayName, locationCode, callingAtDisplayName, timeInput) {
-            const searchResults = document.getElementById('searchResults');
-            searchResults.innerHTML = '';
+		function displaySearchResults(results, locationDisplayName, locationCode, callingAtDisplayName, timeInput) {
+			const searchResults = document.getElementById('searchResults');
+			searchResults.innerHTML = '';
+			
+			// Show the X button when displaying results
+			const xButton = document.createElement('span');
+			xButton.onclick = clearSearchAndGoToTimetable;
+			xButton.style.cssText = "position: absolute; top: 10px; right: 10px; cursor: pointer; font-size: 1.5em; color: #ffffff; z-index: 10;";
+			xButton.textContent = '×';
+			searchResults.appendChild(xButton);
             
             if (results.length === 0) {
                 searchResults.innerHTML = `<div class="no-results">No trains found for ${locationDisplayName} at the specified time.</div>`;
