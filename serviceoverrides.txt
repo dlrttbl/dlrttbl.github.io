@@ -134,5 +134,10 @@ Text2: 'A Saturday service is in operation today.'
 Text3: 'The standard Saturday timetable has been loaded, but this may be incorrect. Exercise caution.' 
 Applies: '2026-01-02'
 
+Text1: 'Infomation'
+Text2: 'DLR services finish at 23:30 tonight for rail milling works.'
+Text3: 'The standard timetable has been loaded, but this may be incorrect as the evening progresses and services wind down early. Exercise caution.' 
+Applies: '2026-05-07/2026-05-09'
+
 
 
