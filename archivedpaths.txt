@@ -16,3 +16,9 @@ Name: [ARCHIVED] 250809sa-public
 URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/250809sa-public.csv
 Name: [ARCHIVED] 250810su-public
 URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/250810su-public.csv
+Name: [ARCHIVED] 250929mf-public
+URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/250929mf-public.csv
+Name: [ARCHIVED] 251018sa-public
+URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/251018sa-public.csv
+Name: [ARCHIVED] 251026su-public
+URL: https://raw.githubusercontent.com/dlrttbl/dlrttbl.github.io/refs/heads/main/active%20timetables/251026su-public.csv
